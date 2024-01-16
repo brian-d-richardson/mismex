@@ -1,0 +1,198 @@
+---
+title: "CME CS IPW Simulation Results"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(kableExtra)
+
+```
+
+The goal of this program is to evaluate the Monte Carlo Corrected Score Inverse Probability Weighting (MCCS IPW) estimator in the presence of confounding and measurement error.
+
+Consider the following setup, which is in the original Blette Biometrics submission.
+
+* continuous confounder $L \sim N(0, 1)$,
+* 3-variate continuous exposure $\pmb{A} = (A_1, A_2, A_3)^T$ with $A|L$ having multivariate normal distribution $N_3\left(\begin{bmatrix} 4 + 0.9L \\ 2.5 \\ 1.4 + 0.5L \end{bmatrix}, \begin{bmatrix} 1.1 & 0 & 0 \\ 0 & 0.7 & 0 \\ 0 & 0 & 0.6 \end{bmatrix}\right)$. 
+* mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2, A^*_3)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2, \epsilon_3)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, where $\pmb{\Sigma}_e = \begin{bmatrix} 0.36 & 0 & 0 \\ 0 & 0.25 & 0 \\ 0 & 0 & 0 \end{bmatrix}$. Note that $\epsilon_3 \equiv 0$, meaning $A^*_3 = A_3$, or $A_3$ is measured without error.
+* Binary outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) = ...-1.7 + 0.4A_1 - 0.4A_2 - 0.6A_3 + 0.7L$.
+
+This data generating process leads to the marginal structural model
+$\textrm{E}\{Y(\pmb{a})\} = (1, \pmb{A}^T) \pmb{\gamma} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2 + \gamma_3 a_3 = -1.7 + 0.4 a_1 - 0.4 a_2 - 0.6 a_3$.
+
+In these simulations, we compare six methods:
+
+1) Oracle Logistic Regression
+2) Oracle IPW
+3) Naive Logistic Regression
+4) Naive IPW
+5) Corrected Logistic Regression
+6) Corrected IPW
+
+To construct the standardized weights for the oracle and naive IPW estimators, the normal densities $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated. For the numerator, the sample mean and covariance of $\pmb{A}$ are used. For the denominator, a linear model $\pmb{A} \sim L$ is fit, where it is assumed/known that $A_1, A_2, A_3$ are conditionally independent given $L$.
+
+To construct the standardized weights for the corrected IPW estimator, $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated using $\pmb{A}^*$. Since $\pmb{A}$ and $\pmb{\epsilon}$ are independent multivariate normal, $\textrm{E}(\pmb{A})$ can be estimated with the sample mean of $\pmb{A}^*$, and $\textrm{Cov}(\pmb{A})$ with the sample covariance of $\pmb{A}^*$ minus $\pmb{\Sigma}_e$. Likewise, since, conditional on $L$, $\pmb{A}$ and $\pmb{\epsilon}$ are independent multivariate normal, estimated coefficients from the linear model $\pmb{A}^* \sim L$ are consistent for the coefficients of $\pmb{A} \sim L$, and the conditional covariance of $\pmb{A} | L$ can be estimated by subtracting $\pmb{\Sigma}_e$ from the residual covariance of the model $\pmb{A}^* \sim L$.
+
+For both the oracle and MCCS IPW estimators, estimating equations for the estimated weights and for the outcome model are stacked. This is necessary for sandwich variance estimators to be consistent.
+
+```{r}
+
+# load simulation results from each of 10 clusters
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/sim_data_",
+                          clust, ".csv")))
+  })
+
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list)
+
+# true gamma values
+g <- c(-1.7, 0.4, -0.4, -0.6)
+
+# number of sims per setting
+n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B))
+
+# make long data frame
+sim.out.long <- sim.out %>% 
+  pivot_longer(cols = starts_with("ghat") | starts_with("evar"), 
+               names_to = "method.param",
+               values_to = "val") %>% 
+    mutate(method = factor(substr(method.param, 6, 7),
+                           levels = c("OL", "OI",
+                                      "NL", "NI",
+                                      "CL", "CI")),
+           param = factor(substr(method.param, 9, 9)),
+           name = factor(substr(method.param, 1, 4)),
+           g.true = g[param]) %>% 
+  dplyr::select(-method.param) %>% 
+  group_by(clust, n, B, method, param, name) %>% 
+  mutate(id = -row_number()) %>% 
+  pivot_wider(names_from = name,
+              values_from = val,
+              id_cols = c(clust, n, B, method,
+                          param, g.true, id))
+
+```
+
+```{r}
+
+# check for missing data
+sim.out.long %>% 
+  filter(param == 1) %>% 
+  group_by(method, n, B) %>% 
+  summarise(prop.error = mean(is.na(ghat))) %>% 
+  filter(prop.error > 0) %>% 
+  ungroup()
+
+```
+
+Below are boxplots of the empirical distributions of estimators for $\pmb{\gamma}$.
+
+```{r}
+
+# extract simulation parameters
+n <- unique(sim.out$n)
+B <- unique(sim.out$B)
+var.e <- c(0.36, 0.25, 0)
+
+# make labels for plots
+method.labs <- c("Oracle Logistic",
+                 "Naive Logistic",
+                 "Corrected Logistic",
+                 "Oracle IPW",
+                 "Naive IPW",
+                 "Corrected IPW")
+names(method.labs) <- c("OL", "NL", "CL",
+                        "OI", "NI", "CI")
+
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+B.labs <- paste0("B = ", B)
+names(B.labs) <- B
+
+```
+
+```{r}
+
+make.est.plot <- function(param.) {
+  
+  ggplot(
+    data = filter(sim.out.long,
+                  param == param.),
+    aes(x = method,
+        y = ghat,
+        fill = method)) +
+    geom_boxplot() +
+    stat_summary(fun = mean,
+                 geom = "point",
+                 shape = 8,
+                 size = 2,
+                 orientation = "x",
+                 show.legend = F) +
+    geom_hline(aes(yintercept = g.true),
+               linetype = "dashed",
+               color = "orange") +
+    facet_nested(n ~ B,
+                 scales = "free",
+                 labeller = labeller(B = B.labs,
+                                     n = n.labs)) +
+    labs(y = "Parameter Estimate",
+         fill = "Method") +
+    ggtitle(paste0("Empirical Distribution of Parameter Estimates for Gamma ",
+                   param.),
+            subtitle = paste0(n.rep, " simulations per setting")) +
+    theme_bw() +
+    theme(axis.ticks.x = element_blank(),
+          axis.text.x = element_blank()) +
+    scale_fill_discrete(labels = method.labs) +
+    ylim(-5, 5)
+}
+
+```
+
+```{r}
+
+make.est.plot(1)
+make.est.plot(2)
+make.est.plot(3)
+make.est.plot(4)
+
+```
+
+Below is a table of the empirical bias, empirical standard errors, and mean estimated  standard errors of $\widehat{\pmb{\gamma}}$. Some extreme estimates are messing things up...
+
+```{r}
+
+tbl <- sim.out.long %>% 
+  group_by(param, method, n, B) %>% 
+  summarise(bias = mean(ghat - g.true, na.rm = T),
+            emp.se = sd(ghat, na.rm = T),
+            est.se = mean(sqrt(evar), na.rm = T)) %>% 
+  gather(key, value, bias:est.se) %>% 
+  unite(Group, param, key) %>% 
+  spread(Group, value)
+
+setNames(tbl, sub(".+_", "", names(tbl))) %>% 
+  kable(digits = 2) %>%
+  kable_styling("striped") %>%
+  add_header_above(c(" " = 3, "Component 1" = 3, "Component 2" = 3,
+                     "Component 3" = 3, "Component 4" = 3))
+  
+```
+
+
