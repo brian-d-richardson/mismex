@@ -6,7 +6,6 @@
 #' @return individual or summation estimating function values
 #'
 #' @export
-# for IPW estimators
 get.sand.est <- function(Y, A, L, ghat, method, oracle = T,
                          inv.link, d.inv.link,
                          var.e = NULL, B = NULL, seed = NULL) {
@@ -23,18 +22,22 @@ get.sand.est <- function(Y, A, L, ghat, method, oracle = T,
 
   # use given method to choose estimating function
   if (method == "GLM") {
+    
     get.psi <- function(g, return.sums) get.psi.glm.mccs(
       Y = Y, Astar = A, L = L, g = g,
       var.e = var.e, B = B, seed = seed,
       inv.link = inv.link, d.inv.link = d.inv.link,
       return.sums = return.sums)
+    
   } else if (method == "IPW") {
+    
     get.psi <- function(g, return.sums) {
 
       psi <- cbind(
+        
         get.psi.ps(
           A = A, L = L,
-          coef.a.l = matrix(g[len.a + 1 + 1:(2 * len.a)], nrow = len.a),
+          coef.a.l = matrix(g[len.a + 1 + 1:(2 * len.a)], nrow = len.a, byrow = F),
           var.a.l = exp(g[3 * len.a + 1 + 1:len.a]) + var.e,
           return.sums = F),
 
@@ -42,8 +45,8 @@ get.sand.est <- function(Y, A, L, ghat, method, oracle = T,
           Y = Y, Astar = A, L = L, g = g[1:((len.a) + 1)],
           var.e = var.e, B = B, seed = seed,
           inv.link = inv.link, d.inv.link = d.inv.link,
-          coef.a.l = matrix(g[len.a + 1 + 1:(2 * len.a)], nrow = len.a),
-          var.a.l = exp(g[3 * len.a + 1 + 1:len.a]) + var.e,
+          coef.a.l = matrix(g[len.a + 1 + 1:(2 * len.a)], nrow = len.a, byrow = F),
+          var.a.l = exp(g[3 * len.a + 1 + 1:len.a]),
           mean.a = mean(A), cov.a = cov(A) - diag(var.e),
           return.sums = F))
 
@@ -66,10 +69,10 @@ get.sand.est <- function(Y, A, L, ghat, method, oracle = T,
 
   # B: empirical mean of outer product of Psi
   Psi <- get.psi(ghat, return.sums = F)
-
   Omega <- matrix(rowMeans(apply(Psi, 1, function(psi) psi %*% t(psi))),
                   nrow = length(ghat))
-
+    
   # sandwich estimator
+  #sqrt(diag(Dinv %*% Omega %*% t(Dinv) / n)[1:4])
   return(Dinv %*% Omega %*% t(Dinv) / n)
 }

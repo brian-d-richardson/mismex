@@ -6,10 +6,10 @@
 #' @return individual or summation estimating function values
 #'
 #' @export
-fit.glm <- function(Y, X, inv.link, d.inv.link, g.start = NULL) {
+fit.glm <- function(Y, X, inv.link, d.inv.link, start = NULL) {
 
-  if (is.null(g.start)) {
-    g.start <- rep(0, ncol(X) + 1)
+  if (is.null(start)) {
+    start <- rep(0, ncol(X) + 1)
   }
 
   # Solve oracle IPW equation
@@ -34,51 +34,48 @@ fit.glm <- function(Y, X, inv.link, d.inv.link, g.start = NULL) {
 #' @export
 fit.ipw <- function(Y, A, L,
                     inv.link, d.inv.link,
-                    g.start = NULL) {
+                    start = NULL,
+                    coef.a.l = NULL, var.a.l = NULL) {
 
   len.a <- ncol(A)
   mean.a <- colMeans(A)
   cov.a <- cov(A)
-  if (is.null(g.start)) {
-    g.start <- rep(0, len.a + 1)
+  if (is.null(start)) {
+    start <- rep(0, len.a + 1)
   }
 
-  # get starting values for ps model
-  model.a.l <- lm(A ~ L)
-  start <- c(g.start,
-             as.numeric(t(coef(model.a.l))),
-             log(apply(model.a.l$residuals, 2, var)))
+  # fit propensity score model
+  if (is.null(coef.a.l)) {
+    model.a.l <- lm(A ~ L)
+    coef.a.l <- t(coef(model.a.l))
+    var.a.l <- apply(model.a.l$residuals, 2, var)
+  }
 
   # Solve oracle IPW equation
   root <- rootSolve::multiroot(
     f = function(x) {
-
-        psi.ps <- get.psi.ps(
-          A = A, L = L,
-          coef.a.l = matrix(x[len.a + 1 + 1:(2 * len.a)], nrow = len.a),
-          var.a.l = exp(x[3 * len.a + 1 + 1:len.a]))
-
-        psi.ipw <- get.psi.ipw(
+      
+      get.psi.ipw(
           Y = Y, A = A, L = L, g = x[1:(len.a + 1)],
           inv.link = inv.link, d.inv.link = d.inv.link,
-          coef.a.l = matrix(x[len.a + 1 + 1:(2 * len.a)], nrow = len.a),
-          var.a.l = exp(x[3 * len.a + 1 + 1:len.a]),
-          mean.a = mean.a, cov.a = cov.a)
-
-      return(c(psi.ps, psi.ipw)) },
+          coef.a.l = coef.a.l, var.a.l = var.a.l,
+          mean.a = mean.a, cov.a = cov.a) },
+    
     start = start)
 
-  ret <- root$root
-  names(ret) <- c(
-    paste0("g.", 0:len.a),
-    paste0("coef.a.l.", 1:(2 * len.a)),
-    paste0("log.var.a.l.", 1:len.a))
-
+  ret <- c(
+    root$root,
+    coef.a.l,
+    log(var.a.l))
+    names(ret) <- c(
+      paste0("g.", 0:len.a),
+      paste0("coef.a.l.", 1:(2*len.a)),
+      paste0("log.var.a.l", 1:len.a))
   return(ret)
 }
 #fit.ipw(Y = Y, A = A, L = L,
 #        inv.link = inv.logit, d.inv.link = d.inv.logit,
-#        g.start = coef(glm(Y ~ A, family = binomial)))
+#        start = coef(glm(Y ~ A, family = binomial)))
 
 
 #' Fit MCCS GLM estimating equation
@@ -92,14 +89,17 @@ fit.ipw <- function(Y, A, L,
 fit.glm.mccs <- function(Y, Astar, L,
                          var.e, B = 10, seed = 123,
                          inv.link, d.inv.link,
-                         g.start = NULL) {
+                         start = NULL) {
 
   len.a <- ncol(Astar)
+  if (is.null(start)) {
+    start <- rep(0, len.a + 1)
+  }
 
   # get naive estimates to use as starting values
   root.naive <- fit.glm(Y = Y, X = cbind(1, Astar, L, Astar * L),
                         inv.link = inv.link, d.inv.link = d.inv.link,
-                        g.start = g.start)
+                        start = start)
 
   # Solve MCCS GLM equation
   root <- rootSolve::multiroot(
@@ -133,44 +133,50 @@ fit.glm.mccs <- function(Y, Astar, L,
 fit.ipw.mccs <- function(Y, Astar, L,
                          var.e, B = 10, seed = 123,
                          inv.link, d.inv.link,
-                         g.start = NULL) {
+                         start = NULL,
+                         coef.a.l = NULL, var.a.l = NULL) {
 
   len.a <- ncol(Astar)
   mean.a <- colMeans(Astar)
   cov.a <- cov(Astar) - diag(var.e)
+  if (is.null(start)) {
+    start <- rep(0, len.a + 1)
+  }
+  
+  # fit propensity score model
+  if (is.null(coef.a.l)) {
+    model.a.l <- lm(Astar ~ L)
+    coef.a.l <- t(coef(model.a.l))
+    var.a.l <- apply(model.a.l$residuals, 2, var) - var.e
+  }
 
   # get naive estimates to use as starting values
   root.naive <- fit.ipw(Y = Y, A = Astar, L = L,
                         inv.link = inv.link, d.inv.link = d.inv.link,
-                        g.start = g.start)
+                        start = start)[1:(len.a + 1)]
 
   # Solve MCCS IPW equation
   root <- rootSolve::multiroot(
     f = function(x) {
 
-      # probability weight equation
-      psi.ps <- get.psi.ps(
-        A = Astar, L = L,
-        coef.a.l = matrix(x[len.a + 1 + 1:(2 * len.a)], nrow = len.a),
-        var.a.l = exp(x[3 * len.a + 1 + 1:len.a]))
-
       # IPW equation
-      psi.ipw <- get.psi.ipw.mccs(
-        Y = Y, Astar = Astar, L = L, g = x[1:(len.a + 1)],
+      get.psi.ipw.mccs(
+        Y = Y, Astar = Astar, L = L, g = x,
         var.e = var.e, B = B, seed = seed,
         inv.link = inv.link, d.inv.link = d.inv.link,
-        coef.a.l = matrix(x[len.a + 1 + 1:(2 * len.a)], nrow = len.a),
-        var.a.l = exp(x[3 * len.a + 1 + 1:len.a]),
-        mean.a = mean.a, cov.a = cov.a)
-
-      return(c(psi.ps, psi.ipw)) },
+        coef.a.l = coef.a.l, var.a.l = var.a.l,
+        mean.a = mean.a, cov.a = cov.a) },
+    
     start = root.naive)
 
-  ret <- root$root
+  ret <- c(
+    root$root,
+    coef.a.l,
+    log(var.a.l))
   names(ret) <- c(
     paste0("g.", 0:len.a),
-    paste0("coef.a.l.", 1:(2 * len.a)),
-    paste0("log.var.a.l.", 1:len.a))
+    paste0("coef.a.l.", 1:(2*len.a)),
+    paste0("log.var.a.l", 1:len.a))
   return(ret)
 }
 #fit.ipw.mccs(Y = Y, Astar = Astar, L = L,
