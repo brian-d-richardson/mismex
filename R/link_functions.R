@@ -1,8 +1,8 @@
-#' Inverse logit
+#' Inverse logit link
 #'
-#' @param x
+#' @param x a numeric vector
 #'
-#' @return
+#' @return vector of inverse logit values
 #'
 #' @export
 inv.logit <- function(x) {
@@ -13,18 +13,18 @@ inv.logit <- function(x) {
 #'
 #' @param x
 #'
-#' @return
+#' @return vector of derivative values
 #'
 #' @export
 d.inv.logit <- function(x) {
   exp(x) / (1 + exp(x)) ^ 2
 }
 
-#' indentity
+#' Inverse identity link
 #'
 #' @param x
 #'
-#' @return
+#' @return x
 #'
 #' @export
 inv.ident <- function(x) {
@@ -35,10 +35,10 @@ inv.ident <- function(x) {
 #'
 #' @param x
 #'
-#' @return
+#' @return a vector of ones
 #'
 #' @export
 d.inv.ident <- function(x) {
-  1
+  rep(1, length(x))
 }
 

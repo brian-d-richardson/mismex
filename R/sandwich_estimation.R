@@ -1,9 +1,12 @@
-#' sandwich variance estimator
+#' Sandwich variance estimator
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.ipw
 #'
-#' @return individual or summation estimating function values
+#' @param ghat a numeric vector, estimated parameters
+#' @param oracle logical, indicator for whether true exposure A is provided;
+#'    when oracle = TRUE var.e, B, and seed need not be supplied
+#'
+#' @return estimated covariance matrix of ghat
 #'
 #' @export
 get.sand.est <- function(Y, A, L, ghat, method, oracle = T,
@@ -22,19 +25,19 @@ get.sand.est <- function(Y, A, L, ghat, method, oracle = T,
 
   # use given method to choose estimating function
   if (method == "GLM") {
-    
+
     get.psi <- function(g, return.sums) get.psi.glm.mccs(
       Y = Y, Astar = A, L = L, g = g,
       var.e = var.e, B = B, seed = seed,
       inv.link = inv.link, d.inv.link = d.inv.link,
       return.sums = return.sums)
-    
+
   } else if (method == "IPW") {
-    
+
     get.psi <- function(g, return.sums) {
 
       psi <- cbind(
-        
+
         get.psi.ps(
           A = A, L = L,
           coef.a.l = matrix(g[len.a + 1 + 1:(2 * len.a)], nrow = len.a, byrow = F),
@@ -71,7 +74,7 @@ get.sand.est <- function(Y, A, L, ghat, method, oracle = T,
   Psi <- get.psi(ghat, return.sums = F)
   Omega <- matrix(rowMeans(apply(Psi, 1, function(psi) psi %*% t(psi))),
                   nrow = length(ghat))
-    
+
   # sandwich estimator
   #sqrt(diag(Dinv %*% Omega %*% t(Dinv) / n)[1:4])
   return(Dinv %*% Omega %*% t(Dinv) / n)

@@ -1,35 +1,37 @@
 #' Fit oracle GLM estimating equation
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.glm
 #'
-#' @return individual or summation estimating function values
+#' @param start an optional numeric vector, starting parameter values
+#'
+#' @return root of GLM estimating function
 #'
 #' @export
-fit.glm <- function(Y, X, inv.link, d.inv.link, start = NULL) {
+fit.glm <- function(Y, A, L, inv.link, d.inv.link, start = NULL) {
 
   if (is.null(start)) {
-    start <- rep(0, ncol(X) + 1)
+    start <- rep(0, ncol(A) + 2)
   }
 
   # Solve oracle IPW equation
   root <- rootSolve::multiroot(
-    f = function(g)  get.psi.glm(g = g, Y = Y, X = X,
+    f = function(g)  get.psi.glm(g = g, Y = Y, A = A, L = L,
                                  inv.link = inv.link, d.inv.link = d.inv.link),
-    start = rep(0, ncol(X)))
+    start = start)
 
   return(root$root)
 }
-#fit.glm(Y = Y, X = cbind(1, A, L, A * L),
+#fit.glm(Y = Y, A = A, L = L,
 #        inv.link = inv.logit, d.inv.link = d.inv.logit)
 
 
 #' Fit oracle IPW estimating equation
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.ipw
 #'
-#' @return individual or summation estimating function values
+#' @param start an optional numeric vector, starting parameter values
+#'
+#' @return root of IPW estimating function
 #'
 #' @export
 fit.ipw <- function(Y, A, L,
@@ -54,13 +56,13 @@ fit.ipw <- function(Y, A, L,
   # Solve oracle IPW equation
   root <- rootSolve::multiroot(
     f = function(x) {
-      
+
       get.psi.ipw(
           Y = Y, A = A, L = L, g = x[1:(len.a + 1)],
           inv.link = inv.link, d.inv.link = d.inv.link,
           coef.a.l = coef.a.l, var.a.l = var.a.l,
           mean.a = mean.a, cov.a = cov.a) },
-    
+
     start = start)
 
   ret <- c(
@@ -80,10 +82,11 @@ fit.ipw <- function(Y, A, L,
 
 #' Fit MCCS GLM estimating equation
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.glm.mccs
 #'
-#' @return individual or summation estimating function values
+#' @param start an optional numeric vector, starting parameter values
+#'
+#' @return root of MCCS GLM estimating function
 #'
 #' @export
 fit.glm.mccs <- function(Y, Astar, L,
@@ -124,10 +127,11 @@ fit.glm.mccs <- function(Y, Astar, L,
 
 #' Fit MCCS IPW estimating equation
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.ipw
 #'
-#' @return individual or summation estimating function values
+#' @param start an optional numeric vector, starting parameter values
+#'
+#' @return root of MCCS IPW estimating function
 #'
 #' @export
 fit.ipw.mccs <- function(Y, Astar, L,
@@ -142,7 +146,7 @@ fit.ipw.mccs <- function(Y, Astar, L,
   if (is.null(start)) {
     start <- rep(0, len.a + 1)
   }
-  
+
   # fit propensity score model
   if (is.null(coef.a.l)) {
     model.a.l <- lm(Astar ~ L)
@@ -166,7 +170,7 @@ fit.ipw.mccs <- function(Y, Astar, L,
         inv.link = inv.link, d.inv.link = d.inv.link,
         coef.a.l = coef.a.l, var.a.l = var.a.l,
         mean.a = mean.a, cov.a = cov.a) },
-    
+
     start = root.naive)
 
   ret <- c(

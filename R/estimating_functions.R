@@ -1,6 +1,13 @@
 #' propensity score estimating function
 #'
-#' @param A ...
+#' @param A a matrix of numbers, possibly multivariate continuous exposure
+#'    values with rows corresponding to observations
+#' @param L a vector of numbers, confounding variable
+#' @param coef.a.l a vector of numbers, coefficients for the linear model A~L
+#' @param var.a.l a vector of numbers, values of the covariance matrix of A|L
+#' @param return.sums a logical, indicator for whether a sum of estimating
+#'    function values (as opposed to individual values) is to be returned
+#'    (default is TRUE)
 #'
 #' @return individual or summation estimating function values
 #'
@@ -21,11 +28,13 @@ get.psi.ps <- function(A, L, coef.a.l, var.a.l, return.sums = T) {
 }
 
 
-#' compute standardized weights for (multivariate) normal exposure
+#' compute standardized IP weights for multivariate normal exposure
 #'
-#' @param A ...
+#' @inheritParams get.psi.ps
+#' @param mean.a a vector of numbers, the marginal mean of the exposure A
+#' @param cov.a a matrix of numbers, the marginal covariance of the exposure A
 #'
-#' @return individual or summation estimating function values
+#' @return a vector of standardized IP weights
 #'
 #' @export
 get.SW <- function(A, L,
@@ -58,14 +67,25 @@ get.SW <- function(A, L,
 
 #' Oracle GLM estimating function
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @param Y a numeric vector, outcome variable
+#' @param A a matrix of numbers, possibly multivariate continuous exposure
+#'    values with rows corresponding to observations
+#' @param L a vector of numbers, confounding variable
+#' @param g a numeric vector, coefficients in GLM Y~A+L
+#' @param inv.link a function, inverse link function
+#' @param d.inv.link a function, derivative of inv.link
+#' @param return.sums a logical, indicator for whether a sum of estimating
+#'    function values (as opposed to individual values) is to be returned
+#'    (default is TRUE)
 #'
 #' @return individual or summation estimating function values
 #'
 #' @export
-get.psi.glm <- function(Y, X, g, inv.link, d.inv.link,
+get.psi.glm <- function(Y, A, L, g, inv.link, d.inv.link,
                         return.sums = T) {
+
+  # design matrix (no interactions)
+  X <- cbind(1, A, L)
 
   psi <- as.vector((Y - inv.link(X %*% g)) *
                     d.inv.link(X %*% g)) *
@@ -82,8 +102,12 @@ get.psi.glm <- function(Y, X, g, inv.link, d.inv.link,
 
 #' Oracle IPW estimating function
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.ps
+#'
+#' @param Y a numeric vector, outcome variable
+#' @param g a numeric vector, coefficients in the MSM Y~A
+#' @param inv.link a function, link function
+#' @param d.inv.link a function, derivative of inv.link
 #'
 #' @return individual or summation estimating function values
 #'
@@ -110,8 +134,12 @@ get.psi.ipw <- function(Y, A, L, g, inv.link, d.inv.link,
 
 #' MCCS GLM estimating function
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.glm
+#'
+#' @param Astar a matrix of numbers, mismeasured continuous exposure
+#' @param var.e a numeric vector, measurement error variance
+#' @param B a non-negative integer, number of Monte-Carlo replicates
+#' @param seed a non-negative integer, random seed for Monte-Carlo simulation
 #'
 #' @return individual or summation estimating function values
 #'
@@ -164,10 +192,16 @@ get.psi.glm.mccs <- function(Y, Astar, L, g,
 
 #' MCCS IPW estimating function
 #'
-#' @param Y outcome, a numeric vector
-#' @param A ...
+#' @inheritParams get.psi.ipw
 #'
-#' @return individual or summation estimating function values
+#' @param Astar a matrix of numbers, mismeasured continuous exposure
+#' @param var.e a numeric vector, measurement error variance
+#' @param B a non-negative integer, number of Monte-Carlo replicates
+#' @param seed a non-negative integer, random seed for Monte-Carlo simulation
+#' @param coef.a.l a vector of numbers, coefficients for the linear model A~L
+#' @param var.a.l a vector of numbers, values of the covariance matrix of A|L
+#' @param mean.a a vector of numbers, the marginal mean of the exposure A
+#' @param cov.a a matrix of numbers, the marginal covariance of the exposure A
 #'
 #' @export
 get.psi.ipw.mccs <- function(Y, Astar, L, g,

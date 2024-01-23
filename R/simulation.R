@@ -1,8 +1,19 @@
-#' run one IPW simulation with linear link function
+#' run one IPW simulation with a bivariate exposure, binary outcome, and a linear link function
 #'
-#' @param
+#' @param n a positive integer, the sample size
+#' @param vare a non-negative number, the measurement error variance for the first component of the exposure
+#' @param B a non-negative integer, the number of Monte-Carlo replicates used in corrected score methods
+#' @param seed a non-negative integer, the random number seed to be set before data are generated
 #'
-#' @return
+#' @return a named numeric vector with the following entries
+#' \itemize{
+#' \item{n}
+#' \item{vare}
+#' \item{B}
+#' \item{seed}
+#' \item{ghat: the estimated marginal structural model parameters from six methods (OL = oracle linear model, NL = naive linear model, CL = corrected linear model, OI = oracle IPW, NI = naive IPW, CI = corrected IPW)}
+#' \item{evar: the estimated variance of ghat for each of the six methods}
+#' }
 #'
 #' @export
 sim1 <- function(n = 2000,
@@ -134,7 +145,7 @@ sim1 <- function(n = 2000,
   #diag(evar.OI)[1:3], diag(evar.NI)[1:3], diag(evar.CI)[1:3)
 
   names(ret) <- c(
-    "n", "B", "vare", "seed",
+    "n", "vare", "B", "seed",
     apply(tidyr::expand_grid(
       "ghat",
       #c("ghat", "evar"),

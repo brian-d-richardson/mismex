@@ -5,11 +5,10 @@
 
 # Brian Richardson
 
-# 2024/01/15
+# 2024/01/23
 
 ###############################################################################
 ###############################################################################
-
 
 # setup -------------------------------------------------------------------
 
@@ -24,8 +23,6 @@ source("R/misc_helpers.R")
 source("R/sandwich_estimation.R")
 source("R/simulation.R")
 
-# for troubleshooting -----------------------------------------------------
-
 # simulation parameters ---------------------------------------------------
 
 # baseline seed (specific to cluster)
@@ -36,9 +33,9 @@ base.seed <- 10^6 * as.integer(args)
 n.sim <- 100
 
 # varied parameters
-n <- c(800, 2000)               # sample size
-B <- 10#c(10, 20)                       # number of MC replicates
-vare <- c(0.3, 0.6)                  # measurement error variance for A1, A2
+n <- c(800, 2000)                     # sample size
+B <- 10#c(10, 20)                     # number of MC replicates
+vare <- c(0.3, 0.6)                   # measurement error variance for A1, A2
 
 # run simulations ---------------------------------------------------------
 
