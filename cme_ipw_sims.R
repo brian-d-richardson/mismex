@@ -26,40 +26,40 @@ source("R/simulation.R")
 
 # for troubleshooting -----------------------------------------------------
 
-#setwd("C:/Users/Brian Richardson/OneDrive - University of North Carolina at Chapel Hill/Desktop/CFAR/Projects in Progress/Confounding and Measurement Error/causalMismeasR")
-#library(devtools); load_all()
-
 # simulation parameters ---------------------------------------------------
 
 # baseline seed (specific to cluster)
-args <- 1#commandArgs(TRUE)
+args <- commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
-n.sim <- 50                   
+n.sim <- 100
 
 # varied parameters
-n <- 2000#c(800, 2000)               # sample size
-B <- 10                      # number of MC replicates
+n <- c(800, 2000)               # sample size
+B <- 10#c(10, 20)                       # number of MC replicates
+vare <- c(0.3, 0.6)                  # measurement error variance for A1, A2
 
 # run simulations ---------------------------------------------------------
 
 # create simulation input
 sim.in <- expand.grid(n = n,
                       B = B,
+                      vare = vare,
                       sim.id = 1:n.sim + base.seed)
 
 # run simulations
 sim.out <- pbapply::pbvapply(
   X = 1:nrow(sim.in),
   FUN = function(ii) {
-    
+
     sim1(n = sim.in$n[ii],
          B = sim.in$B[ii],
+         vare = sim.in$vare[ii],
          seed = sim.in$sim.id[ii])
-    
+
   },
-  FUN.VALUE = numeric(27)) |> # numeric(51) when including variance estimates
+  FUN.VALUE = numeric(22)) |>
   t()
 
 # save sim results

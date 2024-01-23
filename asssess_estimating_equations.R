@@ -15,47 +15,29 @@ library(devtools)
 library(ggplot2)
 library(MASS)
 load_all()
-n = 10000; B = 10; seed = 1;
-gg = c(1, 0.5, -0.5, -1);
-inv.link = function(x) 0.5 * inv.logit(x);
-d.inv.link = function(x) 0.5 * d.inv.logit(x)
 
-# seed for reproducibility
-set.seed(seed)
+## define parameters
+n <- 10000                                        # sample size
+gg <- c(-0.5, 0.5, 0.5, -0.5);                    # MSM parameters
+inv.link <- function(x) 0.5 * inv.logit(x);       # MSM link function
+d.inv.link <- function(x) 0.5 * d.inv.logit(x)    # MSM derivative of link
+var.e <- c(0.3, 0.3, 0)                           # measurement error variance
+coef.a.l <- matrix(data = c(1, 1, 0.5, 0, 0, -1), # coefs in A|L model
+                   nrow = 3, byrow = T)
+var.a.l <- c(1, 1, 1)                             # variance of A|L
 
-# measurement error variance
-var.e <- c(0.36, 0.25, 0)
-
-# parameters for model of A ~ L
-coef.a.l <- matrix(data = c(0, 1, 0, 0, 0, -1), nrow = 3, byrow = T)
-var.a.l <- c(.36, .25, .16)
-
-# confounder
-L <- runif(n)
-
-# true exposure
-A <- mvrnorm(n = n,                       
+## generate data
+set.seed(1)                                      # seed for reproducibility
+L <- runif(n)                                    # confounder
+A <- mvrnorm(n = n,                              # true exposure
              mu = c(0, 0, 0),
              Sigma = diag(var.a.l)) +
   cbind(1, L) %*% t(coef.a.l)
-
-# mismeasured exposure
-Astar <- A + mvrnorm(n = n,
+Astar <- A + mvrnorm(n = n,                      # mismeasured exposure
                      m = c(0, 0, 0),
                      Sigma = diag(var.e))
-
-# binary outcome
-Y_prob <- L * inv.logit(cbind(1, A) %*% gg)
-
-# assess Y_prob0
-ggplot(data = NULL,
-       aes(y = Y_prob)) +
-  geom_boxplot() +
-  geom_hline(yintercept = c(0, 1),
-             color = "blue",
-             linetype = "dashed")
-
-Y <- rbinom(n, 1, Y_prob)
+Y_prob <- L * inv.logit(cbind(1, A) %*% gg)      # mean of binary outcome
+Y <- rbinom(n, 1, Y_prob)                        # binary outcome
 
 # compute estimating equation values
 psi.ps <- get.psi.ps(
