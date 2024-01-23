@@ -96,11 +96,11 @@ fit.glm.mccs <- function(Y, Astar, L,
 
   len.a <- ncol(Astar)
   if (is.null(start)) {
-    start <- rep(0, len.a + 1)
+    start <- rep(0, len.a + 2)
   }
 
   # get naive estimates to use as starting values
-  root.naive <- fit.glm(Y = Y, X = cbind(1, Astar, L, Astar * L),
+  root.naive <- fit.glm(Y = Y, A = Astar, L = L,
                         inv.link = inv.link, d.inv.link = d.inv.link,
                         start = start)
 

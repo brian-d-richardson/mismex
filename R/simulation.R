@@ -45,7 +45,6 @@ sim1 <- function(n = 2000,
                        m = c(0, 0),
                        Sigma = diag(var.e))
   Y_prob <- cbind(1, A, L) %*% gg                # mean of binary outcome
-  #range(Y_prob); hist(Y_prob)
   Y_prob[Y_prob < 0] <- 0                        # correct Y_prob in rare cases
   Y_prob[Y_prob > 1] <- 1
   Y <- rbinom(n, 1, Y_prob)                      # binary outcome
@@ -53,10 +52,10 @@ sim1 <- function(n = 2000,
   ## estimate MSM parameters
   # (i) oracle logistic regression
   ghat.OL <- tryCatch(
-    expr = fit.glm(Y = Y, X = cbind(1, A, L, A*L),
+    expr = fit.glm(Y = Y, A = A, L = L,
                    inv.link = inv.logit, d.inv.link = d.inv.logit),
-    warning = function(w) rep(NA, 6),
-    error = function(e) rep(NA, 6))
+    warning = function(w) rep(NA, 4),
+    error = function(e) rep(NA, 4))
 
   #evar.OL <- tryCatch(
   #  expr = get.sand.est(Y = Y, A = A, L = L, ghat = ghat.OL,
@@ -67,10 +66,10 @@ sim1 <- function(n = 2000,
 
   # (ii) naive logistic regression
   ghat.NL <- tryCatch(
-    expr = fit.glm(Y = Y, X = cbind(1, Astar, L, Astar*L),
+    expr = fit.glm(Y = Y, A = Astar, L = L,
                    inv.link = inv.logit, d.inv.link = d.inv.logit),
-    warning = function(w) rep(NA, 6),
-    error = function(e) rep(NA, 6))
+    warning = function(w) rep(NA, 4),
+    error = function(e) rep(NA, 4))
 
   #evar.NL <- tryCatch(
   #  expr = get.sand.est(Y = Y, A = Astar, L = L, ghat = ghat.NL,
@@ -138,7 +137,7 @@ sim1 <- function(n = 2000,
   #  warning = function(w) matrix(NA, 9, 9),
   #  error = function(e) matrix(NA, 9, 9))
 
-  ret <- c(n, B, vare, seed,
+  ret <- c(n, vare, B, seed,
            ghat.OL[1:3], ghat.NL[1:3], ghat.CL[1:3],
            ghat.OI[1:3], ghat.NI[1:3], ghat.CI[1:3])#,
   #diag(evar.OL)[1:3], diag(evar.NL)[1:3], diag(evar.CL)[1:3],

@@ -167,20 +167,17 @@ get.psi.glm.mccs <- function(Y, Astar, L, g,
                             mu = rep(0, len.a),
                             Sigma = diag(var.e))),
         nrow = n, byrow = F)
-
-      # predictor matrix
       Atilde <- Astar + e.tilde
-      Xtilde <- cbind(1, Atilde, L, L * Atilde)
 
       # evaluate glm psi at Astar + e.tilde and take real component
-      Re(get.psi.glm(Y = Y, X = Xtilde, g = g,
+      Re(get.psi.glm(Y = Y, A = Atilde, L = L, g = g,
                      inv.link = inv.link, d.inv.link = d.inv.link,
                      return.sums = F))
     },
 
-    FUN.VALUE = numeric(n * 2 * (len.a + 1))) |>
+    FUN.VALUE = numeric(n * (len.a + 2))) |>
     rowMeans() |>
-    matrix(nrow = n, ncol = 2 * (len.a + 1), byrow = F)
+    matrix(nrow = n, ncol = len.a + 2, byrow = F)
 
   if (return.sums) {
     return(colSums(psi))
