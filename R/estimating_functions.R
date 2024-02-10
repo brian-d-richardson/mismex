@@ -85,7 +85,7 @@ get.psi.glm <- function(Y, A, L, g, inv.link, d.inv.link,
                         return.sums = T) {
 
   # design matrix (no interactions)
-  X <- cbind(1, A, L)
+  X <- cbind(1, A, L, A*L)
 
   psi <- as.vector((Y - inv.link(X %*% g)) *
                     d.inv.link(X %*% g)) *
@@ -175,9 +175,9 @@ get.psi.glm.mccs <- function(Y, Astar, L, g,
                      return.sums = F))
     },
 
-    FUN.VALUE = numeric(n * (len.a + 2))) |>
+    FUN.VALUE = numeric(n * 2 * (len.a + 1))) |>
     rowMeans() |>
-    matrix(nrow = n, ncol = len.a + 2, byrow = F)
+    matrix(nrow = n, ncol = 2 * (len.a + 1), byrow = F)
 
   if (return.sums) {
     return(colSums(psi))

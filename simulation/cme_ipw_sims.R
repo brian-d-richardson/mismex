@@ -26,16 +26,16 @@ source("R/simulation.R")
 # simulation parameters ---------------------------------------------------
 
 # baseline seed (specific to cluster)
-args <- commandArgs(TRUE)
+args <- 1#commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
-n.sim <- 100
+n.sim <- 3
 
 # varied parameters
-n <- c(800, 2000)                     # sample size
-B <- 10#c(10, 20)                     # number of MC replicates
-vare <- c(0.3, 0.6)                   # measurement error variance for A1, A2
+n <- 2000                         # sample size
+B <- 50                           # number of MC replicates
+vare <- 0.05                      # measurement error variance for A1, A2
 
 # run simulations ---------------------------------------------------------
 
@@ -56,9 +56,9 @@ sim.out <- pbapply::pbvapply(
          seed = sim.in$sim.id[ii])
 
   },
-  FUN.VALUE = numeric(22)) |>
+  FUN.VALUE = numeric(52)) |>
   t()
 
 # save sim results
 write.csv(sim.out, row.names = F,
-          paste0("sim_data/sim_data_", as.integer(args), ".csv"))
+          paste0("sim_data/cme_ipw/sd", as.integer(args), ".csv"))

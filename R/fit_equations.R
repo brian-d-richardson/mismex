@@ -10,7 +10,7 @@
 fit.glm <- function(Y, A, L, inv.link, d.inv.link, start = NULL) {
 
   if (is.null(start)) {
-    start <- rep(0, ncol(A) + 2)
+    start <- rep(0, 2 *(ncol(A) + 1))
   }
 
   # Solve oracle IPW equation
@@ -96,7 +96,7 @@ fit.glm.mccs <- function(Y, Astar, L,
 
   len.a <- ncol(Astar)
   if (is.null(start)) {
-    start <- rep(0, len.a + 2)
+    start <- rep(0, 2 * (len.a + 1))
   }
 
   # get naive estimates to use as starting values
