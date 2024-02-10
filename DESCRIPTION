@@ -1,10 +1,10 @@
-Package: causalMismeasR
-Title: What the Package Does (One Line, Title Case)
+Package: mismex
+Title: estimation of causal effects under a mismeasured exposure
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
+    person("Brian", "Richardson", , "brichson@ad.unc.edu", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Description: estimation of causal effects via inverse probability weighting, g-formula, and double robust estimator in the setting of a possibly multiviariate continuous exposure with classical additive measurement error
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
