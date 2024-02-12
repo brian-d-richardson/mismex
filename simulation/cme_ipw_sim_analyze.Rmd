@@ -65,7 +65,6 @@ sim.out.list <- lapply(
 
 # combine simulation results into 1 data frame
 sim.out <- bind_rows(sim.out.list)
-colnames(sim.out)[30:53] <- gsub("se", "stde", colnames(sim.out)[30:53])
 
 # true MSM parameters
 g <- c(0.45, 0.20, 0.15, 0.15)
@@ -135,8 +134,12 @@ names(B.labs) <- B
 vare.labs <- paste0("sigma_e = ", vare)
 names(vare.labs) <- vare
 
-param.labs <- paste0("gamma", 0:3)
+param.labs <- paste0("\u03b3", c("\u2080", "\u2081", "\u2082", "\u2083"))
 names(param.labs) <- 1:4
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
 
 ```
 
@@ -151,7 +154,8 @@ plot.by.var <- function(vare. = 0.05, est_cutoff = Inf) {
                   abs(ghat - g.true) < est_cutoff),
     aes(x = method,
         y = ghat,
-        fill = method)) +
+        fill = method,
+        color = method)) +
     geom_boxplot() +
     stat_summary(fun = mean,
                  geom = "point",
@@ -167,22 +171,26 @@ plot.by.var <- function(vare. = 0.05, est_cutoff = Inf) {
                labeller = labeller(n = n.labs,
                                    param = param.labs)) +
     labs(y = "Parameter Estimate",
-         fill = "Method") +
+         fill = "Method",
+         color = "Method") +
     ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
             subtitle = paste0(n.rep, " simulations per setting")) +
     theme_bw() +
     theme(axis.title.x = element_blank(),
           axis.ticks.x = element_blank(),
           axis.text.x = element_blank()) +
-    scale_fill_discrete(labels = method.labs)
+    scale_fill_manual(values = pal_light,
+                      labels = method.labs) +
+    scale_color_manual(values = pal_dark,
+                      labels = method.labs)
 }
-
 
 ```
 
 ```{r}
 
 plot.by.var()
+plot.by.var(est_cutoff = 1)
 
 ```
 
@@ -208,44 +216,6 @@ setNames(tbl, sub(".+_", "", names(tbl))) %>%
                      "Component 3" = 3,
                      "Component 4" = 3))
   
-```
-
-```{r eval = F}
-
-# separate plots for each sample size
-plot.se.by.vare <- function(vare. = vare) {
-  
-  ggplot(
-    data = filter(sim.out.long,
-                  vare == vare.),
-    aes(x = method,
-        y = stde,
-        fill = method)) +
-    geom_boxplot() +
-    stat_summary(fun = mean,
-                 geom = "point",
-                 shape = 8,
-                 size = 2,
-                 orientation = "x",
-                 show.legend = F) +
-    facet_grid(n ~ param,
-               scales = "free",
-               labeller = labeller(n = n.labs,
-                                   param = param.labs)) +
-    labs(y = "Estimated Standard Error",
-         fill = "Method") +
-    ggtitle("Distribution of Estimated Standard Errors",
-            subtitle = paste0(n.rep, " simulations per setting")) +
-    theme_bw() +
-    theme(axis.title.x = element_blank(),
-          axis.ticks.x = element_blank(),
-          axis.text.x = element_blank()) +
-    scale_fill_discrete(labels = method.labs)
-}
-
-plot.se.by.vare() +
-  ylim(0, 0.2)
-
 ```
 
 

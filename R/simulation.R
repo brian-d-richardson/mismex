@@ -18,12 +18,12 @@
 #' @export
 sim1 <- function(n = 8000,
                  vare = 0.05,
-                 B = 75,
+                 B,
                  seed = 1) {
 
   ## for troubleshooting
   #library(MASS); library(devtools); load_all()
-  #n = 8000; vare = 0.05; B = 75; seed = 1;
+  #n = 8000; vare = 0.05; B = 80; seed = 1;
 
   ## define parameters
   gg <- c(0.4, 0.15, 0.15, 0.2,
@@ -84,16 +84,17 @@ sim1 <- function(n = 8000,
   # (vi) MCCS IPW estimator
   res.CI <- fit.ipw.mccs(Y = Y, Astar = Astar, L = L,
                         var.e = var.e, B = B, seed = 123,
-                        mean.a = mean(Astar), cov.a = cov(Astar) - diag(var.e),
+                        mean.a = colMeans(Astar),
+                        cov.a = cov(Astar) - diag(var.e),
                         inv.link = inv.link, d.inv.link = d.inv.link)
 
   # combine results: estimates and std errors for 4 parameters
   ret <- c(n, vare, B, seed,
-           res.OI$est[1:4], res.NI$est[1:4], res.CI$est[1:4],
            res.OL$est[1:4], res.NL$est[1:4], res.CL$est[1:4],
+           res.OI$est[1:4], res.NI$est[1:4], res.CI$est[1:4],
            sqrt(c(
-            diag(res.OI$var)[1:4], diag(res.NI$var)[1:4], diag(res.CI$var)[1:4],
-            diag(res.OL$var)[1:4], diag(res.NL$var)[1:4], diag(res.CL$var)[1:4]
+            diag(res.OL$var)[1:4], diag(res.NL$var)[1:4], diag(res.CL$var)[1:4],
+            diag(res.OI$var)[1:4], diag(res.NI$var)[1:4], diag(res.CI$var)[1:4]
            )))
 
   names(ret) <- c(

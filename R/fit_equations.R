@@ -142,7 +142,7 @@ fit.ipw <- function(Y, A, L,
 #'
 #' @export
 fit.glm.mccs <- function(Y, Astar, L,
-                         var.e, B = 10, seed = 123,
+                         var.e, B, seed = 123,
                          inv.link, d.inv.link,
                          return.var = TRUE,
                          start = NULL) {
@@ -203,7 +203,7 @@ fit.glm.mccs <- function(Y, Astar, L,
 #'
 #' @export
 fit.ipw.mccs <- function(Y, Astar, L,
-                         var.e, B = 10, seed = 123,
+                         var.e, B, seed = 123,
                          inv.link, d.inv.link,
                          start = NULL,
                          return.var = TRUE,
