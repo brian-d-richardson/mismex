@@ -134,7 +134,7 @@ names(B.labs) <- B
 vare.labs <- paste0("sigma_e = ", vare)
 names(vare.labs) <- vare
 
-param.labs <- paste0("\u03b3", c("\u2080", "\u2081", "\u2082", "\u2083"))
+param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
 names(param.labs) <- 1:4
 
 # colorblind friendly pallette
@@ -194,7 +194,7 @@ plot.by.var(est_cutoff = 1)
 
 ```
 
-Below is a table of the empirical bias and empirical standard errors of $\widehat{\pmb{\gamma}}$.
+Below is a table of the empirical bias, empirical standard error, and mean estimated standard error of $\widehat{\pmb{\gamma}}$.
 
 ```{r}
 

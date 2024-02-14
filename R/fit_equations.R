@@ -7,12 +7,14 @@
 #' @return root of GLM estimating function
 #'
 #' @export
-fit.glm <- function(Y, A, L, inv.link, d.inv.link,
+fit.glm <- function(Y, A, L, formula, inv.link, d.inv.link,
                     start = NULL, return.var = TRUE) {
 
-  len.a <- ncol(A)              # dimension of A
-  len.est <- 2 * (len.a + 1)    # dimension of model parameters
-  n <- nrow(A)                  # sample size
+  len.a <- ifelse(is.vector(A), 1, ncol(A))     # dimension of A
+  n <- ifelse(is.vector(A), length(A), nrow(A)) # sample size
+
+  # dimension of model parameters
+  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 1
 
   # set starting value if not supplied
   if (is.null(start)) {
@@ -22,7 +24,7 @@ fit.glm <- function(Y, A, L, inv.link, d.inv.link,
   # solve oracle IPW equation
   root <- tryCatch(
     expr = rootSolve::multiroot(
-      f = function(g) get.psi.glm(g = g, Y = Y, A = A, L = L,
+      f = function(g) get.psi.glm(g = g, Y = Y, A = A, L = L, formula = formula,
                                   inv.link = inv.link, d.inv.link = d.inv.link),
       start = start)$root,
     warning = function(w) rep(NA, len.est),
@@ -35,9 +37,9 @@ fit.glm <- function(Y, A, L, inv.link, d.inv.link,
     evar <- tryCatch(
       expr = get.sand.est(
         ghat = root,
-        len.a = len.a, n = n,
+        n = n,
         get.psi = function(x) get.psi.glm(
-          Y = Y, A = A, L = L, g = x,
+          Y = Y, A = A, L = L, g = x, formula = formula,
           inv.link = inv.link, d.inv.link = d.inv.link, return.sums = F)),
       warning = function(w) matrix(NA, len.est, len.est),
       error = function(e) matrix(NA, len.est, len.est))
@@ -46,6 +48,58 @@ fit.glm <- function(Y, A, L, inv.link, d.inv.link,
   return(list(est = root,
               var = evar))
 }
+
+#' Fit oracle G-formula estimating equation
+#'
+#' @inheritParams get.psi.glm
+#'
+#' @param start an optional numeric vector, starting parameter values
+#' @param a exposure value at which to estimate mean potential outcome
+#'
+#' @return root of GLM estimating function
+#'
+#' @export
+fit.gfmla <- function(Y, A, L, a, formula, inv.link, d.inv.link,
+                      start = NULL, return.var = TRUE) {
+
+  len.a <- ifelse(is.vector(A), 1, ncol(A))         # dimension of A
+  n <- ifelse(is.vector(A), length(A), nrow(A))     # sample size
+
+  # dimension of model parameters
+  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 2
+
+  # fit outcome model
+  root <- fit.glm(Y = Y, A = A, L = L, formula = formula,
+                  inv.link = inv.link, d.inv.link = d.inv.link,
+                  return.var = F)$est
+
+  # estimate E{Y(a)}
+  a.mod.mat <- complexlm::zmodel.matrix(terms(as.formula(gsub("A", "a", formula))),
+                                        data = data.frame(a, L))
+  EYa <- mean(inv.link(a.mod.mat %*% root))
+  ghat = c(root, EYa)
+
+  # sandwich variance estimate if requested
+  evar = matrix(NA, len.est, len.est)
+  if (return.var) {
+    evar <- tryCatch(
+      expr = get.sand.est(
+        ghat = ghat,
+        n = n,
+        get.psi = function(x) {
+          cbind(
+            get.psi.glm(
+              Y = Y, A = A, L = L, g = head(x, -1), formula = formula,
+              inv.link = inv.link, d.inv.link = d.inv.link, return.sums = F),
+            tail(x, 1) - inv.link(a.mod.mat %*% head(x, -1))) }),
+      warning = function(w) matrix(NA, len.est, len.est),
+      error = function(e) matrix(NA, len.est, len.est))
+  }
+
+  return(list(est = ghat,
+              var = evar))
+}
+
 
 #' Fit oracle IPW estimating equation
 #'
@@ -63,10 +117,10 @@ fit.ipw <- function(Y, A, L,
                     mean.a = NULL, cov.a = NULL,
                     coef.a.l = NULL, var.a.l = NULL) {
 
-  len.a <- ncol(A)            # dimension of A
+  len.a <- ifelse(is.vector(A), 1, ncol(A))     # dimension of A
   len.msm <- len.a + 1        # dimension of MSM parameters
   len.ps <- 3 * len.a         # dimension of propensity score model parameters
-  n <- nrow(A)                # sample size
+  n <- ifelse(is.vector(A), length(A), nrow(A)) # sample size
 
   # compute marginal mean and covariance of A if not supplied
   if (is.null(mean.a)) {mean.a <- colMeans(A)}
@@ -141,15 +195,17 @@ fit.ipw <- function(Y, A, L,
 #' @return root of MCCS GLM estimating function
 #'
 #' @export
-fit.glm.mccs <- function(Y, Astar, L,
+fit.glm.mccs <- function(Y, Astar, L, formula,
                          var.e, B, seed = 123,
                          inv.link, d.inv.link,
                          return.var = TRUE,
                          start = NULL) {
 
-  len.a <- ncol(Astar)          # dimension of A
-  len.est <- 2 * (len.a + 1)    # dimension of model parameters
-  n <- nrow(Astar)              # sample size
+  len.a <- ifelse(is.vector(Astar), 1, ncol(Astar))     # dimension of A
+  n <- ifelse(is.vector(Astar), length(Astar), nrow(Astar)) # sample size
+
+  # dimension of model parameters
+  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 1
 
   # set starting value if not supplied
   if (is.null(start)) {
@@ -157,7 +213,7 @@ fit.glm.mccs <- function(Y, Astar, L,
   }
 
   # get naive estimates to use as starting values
-  root.naive <- fit.glm(Y = Y, A = Astar, L = L,
+  root.naive <- fit.glm(Y = Y, A = Astar, L = L, formula = formula,
                         inv.link = inv.link, d.inv.link = d.inv.link,
                         start = start, return.var = F)$est
 
@@ -166,7 +222,7 @@ fit.glm.mccs <- function(Y, Astar, L,
     expr = rootSolve::multiroot(
       f = function(x) {
         get.psi.glm.mccs(
-          Y = Y, Astar = Astar, L = L, g = x,
+          Y = Y, Astar = Astar, L = L, g = x, formula = formula,
           inv.link = inv.link, d.inv.link = d.inv.link,
           var.e = var.e, B = B, seed = seed) },
       start = root.naive)$root,
@@ -180,11 +236,12 @@ fit.glm.mccs <- function(Y, Astar, L,
     evar <- tryCatch(
       expr = get.sand.est(
         ghat = root,
-        len.a = len.a, n = n,
+        n = n,
         get.psi = function(x) get.psi.glm.mccs(
-          Y = Y, Astar = Astar, L = L, g = x,
+          Y = Y, Astar = Astar, L = L, g = x, formula = formula,
           var.e = var.e, B = B, seed = 123,
-          inv.link = inv.link, d.inv.link = d.inv.link, return.sums = F)),
+          inv.link = inv.link, d.inv.link = d.inv.link,
+          return.sums = F)),
       warning = function(w) evar,
       error = function(e) evar)
   }
@@ -192,6 +249,64 @@ fit.glm.mccs <- function(Y, Astar, L,
   return(list(est = root,
               var = evar))
 }
+
+
+#' Fit MCCS G-formula estimating equation
+#'
+#' @inheritParams get.psi.glm.mccs
+#'
+#' @param start an optional numeric vector, starting parameter values
+#' @param a exposure value at which to estimate mean potential outcome
+#'
+#' @return root of GLM estimating function and estimated E{Y(a)}
+#'
+#' @export
+fit.gfmla.mccs <- function(Y, Astar, L, a, formula,
+                           var.e, B, seed = 123,
+                           inv.link, d.inv.link,
+                           start = NULL,
+                           return.var = TRUE) {
+
+  len.a <- ifelse(is.vector(Astar), 1, ncol(Astar))           # dimension of A
+  n <- ifelse(is.vector(Astar), length(Astar), nrow(Astar))   # sample size
+
+  # dimension of model parameters
+  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 2
+
+  # fit outcome model
+  root <- fit.glm.mccs(Y = Y, Astar = Astar, L = L, formula = formula,
+                       var.e = var.e, B = B, seed = seed,
+                       inv.link = inv.link, d.inv.link = d.inv.link,
+                       return.var = F)$est
+
+  # estimate E{Y(a)}
+  a.mod.mat <- complexlm::zmodel.matrix(terms(as.formula(gsub("A", "a", formula))),
+                                        data = data.frame(a, L))
+  EYa <- mean(inv.link(a.mod.mat %*% root))
+  ghat = c(root, EYa)
+
+  # sandwich variance estimate if requested
+  evar = matrix(NA, len.est, len.est)
+  if (return.var) {
+    evar <- tryCatch(
+      expr = get.sand.est(
+        ghat = ghat,
+        n = n,
+        get.psi = function(x) {
+          cbind(
+            get.psi.glm.mccs(
+              Y = Y, Astar = Astar, L = L, g = head(x, -1), formula = formula,
+              var.e = var.e, B = B, seed = seed,
+              inv.link = inv.link, d.inv.link = d.inv.link, return.sums = F),
+            tail(x, 1) - inv.link(a.mod.mat %*% head(x, -1))) }),
+      warning = function(w) matrix(NA, len.est, len.est),
+      error = function(e) matrix(NA, len.est, len.est))
+  }
+
+  return(list(est = ghat,
+              var = evar))
+}
+
 
 #' Fit MCCS IPW estimating equation
 #'
@@ -210,10 +325,10 @@ fit.ipw.mccs <- function(Y, Astar, L,
                          mean.a = NULL, cov.a = NULL,
                          coef.a.l = NULL, var.a.l = NULL) {
 
-  len.a <- ncol(Astar)        # dimension of A
+  len.a <- ifelse(is.vector(Astar), 1, ncol(Astar))     # dimension of A
   len.msm <- len.a + 1        # dimension of MSM parameters
   len.ps <- 3 * len.a         # dimension of propensity score model parameters
-  n <- nrow(Astar)            # sample size
+  n <- ifelse(is.vector(Astar), length(Astar), nrow(Astar)) # sample size
 
   # compute marginal mean and covariance of A if not supplied
   if (is.null(mean.a)) {mean.a <- colMeans(Astar)}
@@ -272,7 +387,7 @@ fit.ipw.mccs <- function(Y, Astar, L,
               inv.link = inv.link, d.inv.link = d.inv.link,
               coef.a.l = coef.a.l,
               var.a.l = var.a.l,
-              mean.a = mean(Astar), cov.a = cov(Astar) - diag(var.e),
+              mean.a = colMeans(Astar), cov.a = cov(Astar) - diag(var.e),
               return.sums = F),
             get.psi.ps(
               A = Astar, L = L,

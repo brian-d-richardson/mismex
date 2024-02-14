@@ -16,10 +16,10 @@
 #' }
 #'
 #' @export
-sim1 <- function(n = 8000,
-                 vare = 0.05,
+sim1 <- function(n,
+                 vare,
                  B,
-                 seed = 1) {
+                 seed) {
 
   ## for troubleshooting
   #library(MASS); library(devtools); load_all()

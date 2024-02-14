@@ -55,7 +55,7 @@ get.SW <- function(A, L,
              exp(0.5 * (
 
                (A[ii,] - cbind(1, L[ii]) %*% t(coef.a.l)) %*%
-                 diag(var.a.l ^ -1) %*%
+                 diag(var.a.l ^ -1, nrow = length(var.a.l)) %*%
                  t((A[ii,] - cbind(1, L[ii]) %*% t(coef.a.l))) -
 
                  t(A[ii,] - mean.a) %*% cov.a.inv %*% (A[ii,] - mean.a))) },
@@ -81,11 +81,14 @@ get.SW <- function(A, L,
 #' @return individual or summation estimating function values
 #'
 #' @export
-get.psi.glm <- function(Y, A, L, g, inv.link, d.inv.link,
+get.psi.glm <- function(Y, A, L, g,
+                        formula,
+                        inv.link, d.inv.link,
                         return.sums = T) {
 
   # design matrix (no interactions)
-  X <- cbind(1, A, L, A*L)
+  X <- complexlm::zmodel.matrix(terms(as.formula(formula)),
+                                data = data.frame(A, L))
 
   psi <- as.vector((Y - inv.link(X %*% g)) *
                     d.inv.link(X %*% g)) *
@@ -145,15 +148,16 @@ get.psi.ipw <- function(Y, A, L, g, inv.link, d.inv.link,
 #'
 #' @export
 get.psi.glm.mccs <- function(Y, Astar, L, g,
+                             formula,
                              inv.link, d.inv.link,
-                             var.e, B = 10, seed = 123,
+                             var.e, B, seed = 123,
                              return.sums = T) {
 
   # set seed upon each evaluation
   set.seed(seed)
 
   n <- length(Y)
-  len.a <- ncol(Astar)
+  len.a <- ifelse(is.vector(Astar), 1, ncol(Astar))
 
   # mean of real components of psi0 with simulated imaginary measurement error
   psi <- vapply(
@@ -165,12 +169,13 @@ get.psi.glm.mccs <- function(Y, Astar, L, g,
         len.a, real = 0,
         imaginary = mvrnorm(n = n,
                             mu = rep(0, len.a),
-                            Sigma = diag(var.e))),
+                            Sigma = diag(var.e, nrow = length(var.e)))),
         nrow = n, byrow = F)
-      Atilde <- Astar + e.tilde
+      A <- Astar + e.tilde
 
       # evaluate glm psi at Astar + e.tilde and take real component
-      Re(get.psi.glm(Y = Y, A = Atilde, L = L, g = g,
+      Re(get.psi.glm(Y = Y, A = A, L = L, g = g,
+                     formula = formula,
                      inv.link = inv.link, d.inv.link = d.inv.link,
                      return.sums = F))
     },
@@ -211,7 +216,7 @@ get.psi.ipw.mccs <- function(Y, Astar, L, g,
   set.seed(seed)
 
   n <- length(Y)
-  len.a <- ncol(Astar)
+  len.a <- ifelse(is.vector(Astar), 1, ncol(Astar))
 
   # mean of real components of psi0 with simulated imaginary measurement error
   psiMCCS <- vapply(
@@ -223,7 +228,7 @@ get.psi.ipw.mccs <- function(Y, Astar, L, g,
         len.a, real = 0,
         imaginary = mvrnorm(n = n,
                             mu = rep(0, len.a),
-                            Sigma = diag(var.e))),
+                            Sigma = diag(var.e, nrow = length(var.e)))),
         nrow = n, byrow = F)
 
       # evaluate psi0 at Astar + e.tilde and take real component

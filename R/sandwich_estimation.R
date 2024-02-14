@@ -8,7 +8,7 @@
 #' @return estimated covariance matrix of ghat
 #'
 #' @export
-get.sand.est <- function(ghat, get.psi, len.a = NULL, n = NULL) {
+get.sand.est <- function(ghat, get.psi, n = NULL) {
 
   # D: empirical mean of derivative of Psi
   D <- numDeriv::jacobian(
