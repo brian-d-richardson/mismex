@@ -14,7 +14,8 @@ fit.glm <- function(Y, A, L, formula, inv.link, d.inv.link,
   n <- ifelse(is.vector(A), length(A), nrow(A)) # sample size
 
   # dimension of model parameters
-  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 1
+  len.est <- ncol(model.matrix(terms(as.formula(formula)),
+                               data = data.frame(A, L)))
 
   # set starting value if not supplied
   if (is.null(start)) {
@@ -27,8 +28,8 @@ fit.glm <- function(Y, A, L, formula, inv.link, d.inv.link,
       f = function(g) get.psi.glm(g = g, Y = Y, A = A, L = L, formula = formula,
                                   inv.link = inv.link, d.inv.link = d.inv.link),
       start = start)$root,
-    warning = function(w) rep(NA, len.est),
-    error = function(e) rep(NA, len.est))
+    warning = function(w) {message(w); rep(NA, len.est)},
+    error = function(e) {message(e); rep(NA, len.est)})
   names(root) <- paste0("g.", 0:(len.est - 1))
 
   # sandwich variance estimate if requested
@@ -41,8 +42,8 @@ fit.glm <- function(Y, A, L, formula, inv.link, d.inv.link,
         get.psi = function(x) get.psi.glm(
           Y = Y, A = A, L = L, g = x, formula = formula,
           inv.link = inv.link, d.inv.link = d.inv.link, return.sums = F)),
-      warning = function(w) matrix(NA, len.est, len.est),
-      error = function(e) matrix(NA, len.est, len.est))
+      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
+      error = function(e) {message(e); matrix(NA, len.est, len.est)})
   }
 
   return(list(est = root,
@@ -66,17 +67,24 @@ fit.gfmla <- function(Y, A, L, a, formula, inv.link, d.inv.link,
   n <- ifelse(is.vector(A), length(A), nrow(A))     # sample size
 
   # dimension of model parameters
-  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 2
+  len.est <- ncol(model.matrix(terms(as.formula(formula)),
+                               data = data.frame(A, L))) +
+    length(a)
 
   # fit outcome model
   root <- fit.glm(Y = Y, A = A, L = L, formula = formula,
                   inv.link = inv.link, d.inv.link = d.inv.link,
                   return.var = F)$est
 
-  # estimate E{Y(a)}
-  a.mod.mat <- complexlm::zmodel.matrix(terms(as.formula(gsub("A", "a", formula))),
-                                        data = data.frame(a, L))
-  EYa <- mean(inv.link(a.mod.mat %*% root))
+  # estimate E{Y(a)} for each supplied a value
+  EYa <- vapply(X = a,
+         FUN.VALUE = 0,
+         FUN = function(aa) {
+           a.mod.mat <- mod.mat(terms(as.formula(gsub("A", "a", formula))),
+                                data = data.frame(a = aa, L))
+           mean(inv.link(a.mod.mat %*% root))
+         })
+  names(EYa) <- paste0("EYa.", 1:length(a))
   ghat = c(root, EYa)
 
   # sandwich variance estimate if requested
@@ -87,13 +95,21 @@ fit.gfmla <- function(Y, A, L, a, formula, inv.link, d.inv.link,
         ghat = ghat,
         n = n,
         get.psi = function(x) {
+          ght <- head(x, -length(a))
+          EYa <- tail(x, length(a))
           cbind(
             get.psi.glm(
-              Y = Y, A = A, L = L, g = head(x, -1), formula = formula,
+              Y = Y, A = A, L = L, g = ght, formula = formula,
               inv.link = inv.link, d.inv.link = d.inv.link, return.sums = F),
-            tail(x, 1) - inv.link(a.mod.mat %*% head(x, -1))) }),
-      warning = function(w) matrix(NA, len.est, len.est),
-      error = function(e) matrix(NA, len.est, len.est))
+            vapply(X = 1:length(a),
+                   FUN.VALUE = numeric(n),
+                   FUN = function(aa) {
+                     a.mod.mat <- mod.mat(terms(as.formula(gsub("A", "a", formula))),
+                                          data = data.frame(a = a[aa], L))
+                     EYa[aa] - inv.link(a.mod.mat %*% ght)
+                   }))}),
+      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
+      error = function(e) {message(e); matrix(NA, len.est, len.est)})
   }
 
   return(list(est = ghat,
@@ -146,8 +162,8 @@ fit.ipw <- function(Y, A, L,
           coef.a.l = coef.a.l, var.a.l = var.a.l,
           mean.a = mean.a, cov.a = cov.a) },
       start = start)$root,
-    warning = function(w) rep(NA, len.msm),
-    error = function(e) rep(NA, len.msm))
+    warning = function(w) {message(w); rep(NA, len.msm)},
+    error = function(e) {message(e); rep(NA, len.msm)})
 
   # combine MSM and PS model parameters
   est <- c(root, coef.a.l, log(var.a.l))
@@ -178,8 +194,8 @@ fit.ipw <- function(Y, A, L,
               A = A, L = L,
               coef.a.l = coef.a.l, var.a.l = var.a.l,
               return.sums = F)) }),
-      warning = function(w) evar,
-      error = function(e) evar)
+      warning = function(w) {message(w); evar},
+      error = function(e) {message(e); evar})
   }
 
   return(list(est = est,
@@ -205,7 +221,8 @@ fit.glm.mccs <- function(Y, Astar, L, formula,
   n <- ifelse(is.vector(Astar), length(Astar), nrow(Astar)) # sample size
 
   # dimension of model parameters
-  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 1
+  len.est <- ncol(model.matrix(terms(as.formula(gsub("A", "Astar", formula))),
+                               data = data.frame(Astar, L)))
 
   # set starting value if not supplied
   if (is.null(start)) {
@@ -226,8 +243,8 @@ fit.glm.mccs <- function(Y, Astar, L, formula,
           inv.link = inv.link, d.inv.link = d.inv.link,
           var.e = var.e, B = B, seed = seed) },
       start = root.naive)$root,
-    warning = function(w) rep(NA, len.est),
-    error = function(e) rep(NA, len.est))
+    warning = function(w) {message(w); rep(NA, len.est)},
+    error = function(e) {message(e); rep(NA, len.est)})
   names(root) <- paste0("g.", 0:(len.est - 1))
 
   # sandwich variance estimate if requested
@@ -242,8 +259,8 @@ fit.glm.mccs <- function(Y, Astar, L, formula,
           var.e = var.e, B = B, seed = 123,
           inv.link = inv.link, d.inv.link = d.inv.link,
           return.sums = F)),
-      warning = function(w) evar,
-      error = function(e) evar)
+      warning = function(w) {message(w); evar},
+      error = function(e) {message(e); evar})
   }
 
   return(list(est = root,
@@ -271,7 +288,9 @@ fit.gfmla.mccs <- function(Y, Astar, L, a, formula,
   n <- ifelse(is.vector(Astar), length(Astar), nrow(Astar))   # sample size
 
   # dimension of model parameters
-  len.est <- length(attr(terms(as.formula(formula)), "term.labels")) + 2
+  len.est <- ncol(model.matrix(terms(as.formula(gsub("A", "Astar", formula))),
+                               data = data.frame(Astar, L))) +
+    length(a)
 
   # fit outcome model
   root <- fit.glm.mccs(Y = Y, Astar = Astar, L = L, formula = formula,
@@ -279,10 +298,15 @@ fit.gfmla.mccs <- function(Y, Astar, L, a, formula,
                        inv.link = inv.link, d.inv.link = d.inv.link,
                        return.var = F)$est
 
-  # estimate E{Y(a)}
-  a.mod.mat <- complexlm::zmodel.matrix(terms(as.formula(gsub("A", "a", formula))),
-                                        data = data.frame(a, L))
-  EYa <- mean(inv.link(a.mod.mat %*% root))
+  # estimate E{Y(a)} for each supplied a value
+  EYa <- vapply(X = a,
+                FUN.VALUE = 0,
+                FUN = function(aa) {
+                  a.mod.mat <- mod.mat(terms(as.formula(gsub("A", "a", formula))),
+                                       data = data.frame(a = aa, L))
+                  mean(inv.link(a.mod.mat %*% root))
+                })
+  names(EYa) <- paste0("EYa.", 1:length(a))
   ghat = c(root, EYa)
 
   # sandwich variance estimate if requested
@@ -293,14 +317,22 @@ fit.gfmla.mccs <- function(Y, Astar, L, a, formula,
         ghat = ghat,
         n = n,
         get.psi = function(x) {
+          ght <- head(x, -length(a))
+          EYa <- tail(x, length(a))
           cbind(
             get.psi.glm.mccs(
-              Y = Y, Astar = Astar, L = L, g = head(x, -1), formula = formula,
+              Y = Y, Astar = Astar, L = L, g = ght, formula = formula,
               var.e = var.e, B = B, seed = seed,
               inv.link = inv.link, d.inv.link = d.inv.link, return.sums = F),
-            tail(x, 1) - inv.link(a.mod.mat %*% head(x, -1))) }),
-      warning = function(w) matrix(NA, len.est, len.est),
-      error = function(e) matrix(NA, len.est, len.est))
+            vapply(X = 1:length(a),
+                   FUN.VALUE = numeric(n),
+                   FUN = function(aa) {
+                     a.mod.mat <- mod.mat(terms(as.formula(gsub("A", "a", formula))),
+                                          data = data.frame(a = a[aa], L))
+                     EYa[aa] - inv.link(a.mod.mat %*% ght)
+                   }))}),
+      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
+      error = function(e) {message(e); matrix(NA, len.est, len.est)})
   }
 
   return(list(est = ghat,
@@ -360,8 +392,8 @@ fit.ipw.mccs <- function(Y, Astar, L,
           coef.a.l = coef.a.l, var.a.l = var.a.l,
           mean.a = mean.a, cov.a = cov.a) },
       start = root.naive)$root,
-    warning = function(w) rep(NA, len.msm),
-    error = function(e) rep(NA, len.msm))
+    warning = function(w) {message(w); rep(NA, len.msm)},
+    error = function(e) {message(e); rep(NA, len.msm)})
 
   # combine MSM and PS model parameters
   est <- c(root, coef.a.l, log(var.a.l))
@@ -394,8 +426,8 @@ fit.ipw.mccs <- function(Y, Astar, L,
               coef.a.l = coef.a.l,
               var.a.l = var.a.l + var.e,
               return.sums = F)) }),
-      warning = function(w) evar,
-      error = function(e) evar)
+      warning = function(w) {message(w); evar},
+      error = function(e) {message(e); evar})
   }
 
   return(list(est = est,

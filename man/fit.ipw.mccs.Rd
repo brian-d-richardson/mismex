@@ -9,11 +9,14 @@ fit.ipw.mccs(
   Astar,
   L,
   var.e,
-  B = 10,
+  B,
   seed = 123,
   inv.link,
   d.inv.link,
   start = NULL,
+  return.var = TRUE,
+  mean.a = NULL,
+  cov.a = NULL,
   coef.a.l = NULL,
   var.a.l = NULL
 )

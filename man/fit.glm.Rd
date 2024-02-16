@@ -4,7 +4,16 @@
 \alias{fit.glm}
 \title{Fit oracle GLM estimating equation}
 \usage{
-fit.glm(Y, A, L, inv.link, d.inv.link, start = NULL)
+fit.glm(
+  Y,
+  A,
+  L,
+  formula,
+  inv.link,
+  d.inv.link,
+  start = NULL,
+  return.var = TRUE
+)
 }
 \arguments{
 \item{Y}{a numeric vector, outcome variable}

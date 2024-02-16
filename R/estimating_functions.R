@@ -86,8 +86,8 @@ get.psi.glm <- function(Y, A, L, g,
                         inv.link, d.inv.link,
                         return.sums = T) {
 
-  # design matrix (no interactions)
-  X <- complexlm::zmodel.matrix(terms(as.formula(formula)),
+  # design matrix
+  X <- mod.mat(trms = terms(as.formula(formula)),
                                 data = data.frame(A, L))
 
   psi <- as.vector((Y - inv.link(X %*% g)) *
@@ -159,6 +159,10 @@ get.psi.glm.mccs <- function(Y, Astar, L, g,
   n <- length(Y)
   len.a <- ifelse(is.vector(Astar), 1, ncol(Astar))
 
+  # dimension of model parameters
+  len.est <- ncol(model.matrix(terms(as.formula(gsub("A", "Astar", formula))),
+                               data = data.frame(Astar, L)))
+
   # mean of real components of psi0 with simulated imaginary measurement error
   psi <- vapply(
     X = 1:B,
@@ -180,9 +184,9 @@ get.psi.glm.mccs <- function(Y, Astar, L, g,
                      return.sums = F))
     },
 
-    FUN.VALUE = numeric(n * 2 * (len.a + 1))) |>
+    FUN.VALUE = numeric(n * len.est)) |>
     rowMeans() |>
-    matrix(nrow = n, ncol = 2 * (len.a + 1), byrow = F)
+    matrix(nrow = n, ncol = len.est, byrow = F)
 
   if (return.sums) {
     return(colSums(psi))

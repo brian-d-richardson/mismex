@@ -1,7 +1,7 @@
 ###############################################################################
 ###############################################################################
 
-# B parameter tuning
+# B parameter tuning for IPW simulations
 
 # Brian Richardson
 
@@ -78,12 +78,12 @@ search.out <- pbvapply(
   t() %>%
   as.data.frame()
 
-write.csv(search.out, "sim_data/param_tuning/B_res.csv", row.names = F)
+write.csv(search.out, "simulation/sim_data/param_tuning/ipw_res.csv", row.names = F)
 
 # plot results ------------------------------------------------------------
 
 # load results
-search.out <- read.csv("sim_data/param_tuning/B_res.csv")
+search.out <- read.csv("simulation/sim_data/param_tuning/ipw_res.csv")
 search.out.long <- search.out %>%
   pivot_longer(cols = c(psi1, psi2, psi3, psi4, Time))
 

@@ -4,7 +4,7 @@
 \alias{get.psi.glm}
 \title{Oracle GLM estimating function}
 \usage{
-get.psi.glm(Y, A, L, g, inv.link, d.inv.link, return.sums = T)
+get.psi.glm(Y, A, L, g, formula, inv.link, d.inv.link, return.sums = T)
 }
 \arguments{
 \item{Y}{a numeric vector, outcome variable}

@@ -9,10 +9,11 @@ get.psi.glm.mccs(
   Astar,
   L,
   g,
+  formula,
   inv.link,
   d.inv.link,
   var.e,
-  B = 10,
+  B,
   seed = 123,
   return.sums = T
 )

@@ -4,36 +4,12 @@
 \alias{get.sand.est}
 \title{Sandwich variance estimator}
 \usage{
-get.sand.est(
-  Y,
-  A,
-  L,
-  ghat,
-  method,
-  oracle = T,
-  inv.link,
-  d.inv.link,
-  var.e = NULL,
-  B = NULL,
-  seed = NULL
-)
+get.sand.est(ghat, get.psi, n = NULL)
 }
 \arguments{
-\item{Y}{a numeric vector, outcome variable}
-
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
-
 \item{ghat}{a numeric vector, estimated parameters}
 
-\item{oracle}{logical, indicator for whether true exposure A is provided;
-when oracle = TRUE var.e, B, and seed need not be supplied}
-
-\item{inv.link}{a function, link function}
-
-\item{d.inv.link}{a function, derivative of inv.link}
+\item{get.psi}{estimating function}
 }
 \value{
 estimated covariance matrix of ghat
