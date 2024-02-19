@@ -86,6 +86,13 @@ get.psi.glm <- function(Y, A, L, g,
                         inv.link, d.inv.link,
                         return.sums = T) {
 
+  # rename Astar to A if necessary
+  if (is.vector(A)) {
+    names(A) <- gsub("star", "", colnames(A))
+  } else {
+    colnames(A) <- gsub("star", "", colnames(A))
+  }
+
   # design matrix
   X <- mod.mat(trms = terms(as.formula(formula)),
                                 data = data.frame(A, L))

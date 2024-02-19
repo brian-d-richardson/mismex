@@ -36,13 +36,13 @@ sim.gfmla <- function(n,
 
   # simulate data
   set.seed(seed)
-  L1 <- rbinom(n, 1, 0.5)                                        # confounder 1
-  L2 <- rbinom(n, 1, 0.2)                                        # confounder 2
+  L1 <- rbinom(n, 1, 0.5)                                   # confounder 1
+  L2 <- rbinom(n, 1, 0.2)                                   # confounder 2
   L <- cbind(L1, L2)
   A <- rnorm(n, 2 + 0.3*L1 - 0.5*L2, sqrt(0.6))
-  EY <- inv.link(model.matrix(as.formula(formula)) %*% g)        # mean of outcome
-  Y <- rbinom(n, 1, EY)                                          # outcome
-  Astar <- A + rnorm(n, 0, sqrt(vare))                           # mismeasured A
+  EY <- inv.link(model.matrix(as.formula(formula)) %*% g)   # mean of outcome
+  Y <- rbinom(n, 1, EY)                                     # outcome
+  Astar <- A + rnorm(n, 0, sqrt(vare))                      # mismeasured A
 
   ## fit g-formula models
 
@@ -137,11 +137,12 @@ sim.ipw <- function(n,
 
   ## for troubleshooting
   #library(MASS); library(devtools); load_all()
-  #n = 8000; vare = 0.05; B = 80; seed = 1;
+  #n = 800; vare = 0.05; B = 80; seed = 1;
 
   ## define parameters
   gg <- c(0.4, 0.15, 0.15, 0.2,
           0.1, 0.1, 0, -0.1);                    # Y|A,L parameters
+  formula <- "~A1*L + A2*L + A3*L"               # Y|A,L model formula
   inv.link <- inv.ident;                         # MSM link function
   d.inv.link <- d.inv.ident;                     # MSM derivative of link
   var.e <- c(vare, vare, 0)                      # measurement error variance
@@ -157,38 +158,41 @@ sim.ipw <- function(n,
                mu = c(0, 0, 0),
                Sigma = diag(var.a.l)) +
     cbind(1, L) %*% t(coef.a.l)
+  colnames(A) = paste0("A", 1:3)
   Astar <- A + mvrnorm(n = n,                    # mismeasured exposure
                        m = c(0, 0, 0),
                        Sigma = diag(var.e))
+  colnames(Astar) = paste0("Astar", 1:3)
   Y_prob <- cbind(1, A, L, A*L) %*% gg           # mean of binary outcome
   Y_prob[Y_prob < 0] <- 0                        # correct Y_prob in rare cases
   Y_prob[Y_prob > 1] <- 1
   Y <- rbinom(n, 1, Y_prob)                      # binary outcome
 
+  ## store values
   len.a <- ncol(A)                               # dimension of A
-
   mean.a <- colMeans(A)                          # marginal mean of A
   cov.a <- cov(A)                                # marginal covariance of A
 
   ## estimate MSM parameters
 
   # (i) oracle logistic regression
-  res.OL <- fit.glm(Y = Y, A = A, L = L,
-                     inv.link = inv.link, d.inv.link = d.inv.link)
+  res.OL <- fit.glm(Y = Y, A = A, L = L, formula = formula,
+                    inv.link = inv.link, d.inv.link = d.inv.link)
 
   # (ii) naive logistic regression
-  res.NL <- fit.glm(Y = Y, A = Astar, L = L,
-                   inv.link = inv.link, d.inv.link = d.inv.link)
+  res.NL <- fit.glm(Y = Y, A = Astar, L = L, formula = formula,
+                    inv.link = inv.link, d.inv.link = d.inv.link)
 
   # (iii) MCCS logistic regression
   res.CL <- fit.glm.mccs(Y = Y, Astar = Astar, L = L, var.e = var.e,
-                        inv.link = inv.link, d.inv.link = d.inv.link,
-                        B = B, seed = 123)
+                         formula = formula,
+                         inv.link = inv.link, d.inv.link = d.inv.link,
+                         B = B, seed = 123)
 
   # (iv) oracle IPW estimator
   res.OI <- fit.ipw(Y = Y, A = A, L = L,
-                     mean.a = mean.a, cov.a = cov.a,
-                     inv.link = inv.link, d.inv.link = d.inv.link)
+                    mean.a = mean.a, cov.a = cov.a,
+                    inv.link = inv.link, d.inv.link = d.inv.link)
 
   # (iv) naive IPW estimator
   res.NI <- fit.ipw(Y = Y, A = Astar, L = L,

@@ -150,11 +150,17 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 ```{r}
 
 # separate plots for each sample size
-plot.by.a <- function(a.) {
+plot.by.a <- function(a.,
+                      method. = names(method.labs),
+                      n. = n,
+                      vare. = vare) {
   
   ggplot(
     data = filter(sim.out.long,
-                  a == a.),
+                  a == a.,
+                  method %in% method.,
+                  n %in% n.,
+                  vare %in% vare.),
     aes(x = method,
         y = est,
         fill = method,
@@ -191,6 +197,10 @@ plot.by.a <- function(a.) {
 
 ```
 
+### Raw data plots
+
+These plots show all simulation results. They are difficult to read due to some extreme corrected GLM estimates.
+
 ```{r}
 
 plot.by.a(a. = 0)
@@ -200,6 +210,10 @@ plot.by.a(a. = 3)
 plot.by.a(a. = 4)
 
 ```
+
+### Zoomed-in plots
+
+These plots show zoom in to the relevant simulation results.
 
 ```{r}
 
@@ -211,7 +225,67 @@ plot.by.a(a. = 4) + ylim(-1, 2)
 
 ```
 
-Below is a table of the empirical bias, empirical standard error, and mean estimated standard error of $\widehat{\textrm{E}}\{Y(3)\}$.
+### Primary Plot
+
+This plot shows only the simulation setting considered in the g-formula sims in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$, and only includes g-formula results.
+
+```{r}
+
+plot.by.a(a. = 3, method. = c("OG", "NG", "CG"), n. = 800, vare. = 0.25)
+
+```
+
+### Primary Table
+
+Below is a table of the setting considered in the g-formula sims in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$. It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and mean squared error.
+
+```{r}
+
+tbl.a3 <- sim.out.long %>% 
+  filter(a == 3,
+         n == 800,
+         vare == 0.25) %>% 
+  group_by(method) %>% 
+  summarise(bias = mean(est - EYa.true, na.rm = T),
+            emp.se = sd(est, na.rm = T),
+            est.se = mean(ste, na.rm = T),
+            mse = mean(est - EYa.true))
+
+tbl.a3 %>% 
+  kable(digits = 3,
+        col.names = c("Method", "Bias", "ESE", "ASE", "MSE"),
+        caption = "Estimated E{Y(a)} for a = 3, n = 800, vare = 0.25") %>%
+  kable_styling("striped")
+
+```
+
+### Secondary Table
+
+Below is a table with a sample size of $n=8000$.
+
+```{r}
+
+tbl.a3.n8k <- sim.out.long %>% 
+  filter(a == 3,
+         n == 8000,
+         vare == 0.25) %>% 
+  group_by(method) %>% 
+  summarise(bias = mean(est - EYa.true, na.rm = T),
+            emp.se = sd(est, na.rm = T),
+            est.se = mean(ste, na.rm = T),
+            mse = mean(est - EYa.true))
+
+tbl.a3.n8k %>% 
+  kable(digits = 3,
+        col.names = c("Method", "Bias", "ESE", "ASE", "MSE"),
+        caption = "Estimated E{Y(a)} for a = 3, n = 8000, vare = 0.25") %>%
+  kable_styling("striped")
+
+```
+
+### Complete Table
+
+For completion, we also include a table with bias, ESE, and ASE across all settings considered.
 
 ```{r}
 
@@ -219,7 +293,7 @@ tbl <- sim.out.long %>%
   group_by(a, method, n, B, vare) %>% 
   summarise(bias = mean(est - EYa.true, na.rm = T),
             emp.se = sd(est, na.rm = T),
-            est.se = mean(ste)) %>% 
+            est.se = mean(ste, na.rm = T)) %>% 
   gather(key, value, bias:est.se) %>% 
   unite(Group, a, key) %>% 
   spread(Group, value)
@@ -235,6 +309,12 @@ setNames(tbl, sub(".+_", "", names(tbl))) %>%
                      "E{Y(4)}" = 3))
   
 ```
+
+## Questions
+
+* Variance estimation of the corrected g-formula method doesn't perform very well for $n=800$. It improves for larger sample size ($n=8000$). What to do?
+
+* Is the GLM comparator $\widehat{\textrm{E}}\{Y(a)\} = \textrm{logit}^{-1}(\widehat\beta_0+\widehat\beta_aa)$ fair? A slightly less naive approach would be $\widehat{\textrm{E}}\{Y(a)\} = \textrm{logit}^{-1}\{\widehat\beta_0+\widehat\beta_Aa+\widehat\beta_{L_1}\widehat{\textrm{E}}(L_{1})+\widehat\beta_{L_2}\widehat{\textrm{E}}(L_{2})+\widehat\beta_{A:L_1}a\widehat{\textrm{E}}(L_{1})+\widehat\beta_{A:L_2}a\widehat{\textrm{E}}(L_{2})\}$. The original paper says this method is "in essence assuming that adjusting for $L_1$ and $L_2$ in the models will appropriately control for confounding. While this is not a correct interpretation of these model coefficients (since these methods actually target conditional estimands), this interpretation reflects how adjusted outcome models are often misused in practice." This method performs so poorly that it makes the naive g-formula method (which is really the main comparator of interest) look reasonable.
 
 
 

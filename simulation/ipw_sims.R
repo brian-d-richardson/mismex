@@ -30,7 +30,7 @@ args <- 1#commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
-n.sim <- 100
+n.sim <- 1
 
 # varied parameters
 n <- 800                          # sample size
@@ -50,10 +50,10 @@ sim.out <- pbapply::pbvapply(
   X = 1:nrow(sim.in),
   FUN = function(ii) {
 
-    sim1(n = sim.in$n[ii],
-         B = sim.in$B[ii],
-         vare = sim.in$vare[ii],
-         seed = sim.in$sim.id[ii])
+    sim.ipw(n = sim.in$n[ii],
+            B = sim.in$B[ii],
+            vare = sim.in$vare[ii],
+            seed = sim.in$sim.id[ii])
 
   },
   FUN.VALUE = numeric(52)) |>

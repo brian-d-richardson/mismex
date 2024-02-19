@@ -10,6 +10,13 @@
 fit.glm <- function(Y, A, L, formula, inv.link, d.inv.link,
                     start = NULL, return.var = TRUE) {
 
+  # rename Astar to A if necessary
+  if (is.vector(A)) {
+    names(A) <- gsub("star", "", colnames(A))
+  } else {
+    colnames(A) <- gsub("star", "", colnames(A))
+  }
+
   len.a <- ifelse(is.vector(A), 1, ncol(A))     # dimension of A
   n <- ifelse(is.vector(A), length(A), nrow(A)) # sample size
 
@@ -178,7 +185,7 @@ fit.ipw <- function(Y, A, L,
     evar <- tryCatch(
       expr = get.sand.est(
         ghat = est,
-        len.a = len.a, n = n,
+        n = n,
         get.psi = function(x) {
           coef.a.l <- matrix(x[len.a + 1 + 1:(2 * len.a)],
                              nrow = len.a, byrow = F)
@@ -408,7 +415,7 @@ fit.ipw.mccs <- function(Y, Astar, L,
     evar <- tryCatch(
       expr = get.sand.est(
         ghat = est,
-        len.a = len.a, n = n,
+        n = n,
         get.psi = function(x) {
           coef.a.l <- matrix(x[len.a + 1 + 1:(2 * len.a)], nrow = len.a, byrow = F)
           var.a.l <- exp(x[3 * len.a + 1 + 1:len.a])
