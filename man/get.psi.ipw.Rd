@@ -9,6 +9,8 @@ get.psi.ipw(
   A,
   L,
   g,
+  formula,
+  ps.formula,
   inv.link,
   d.inv.link,
   coef.a.l,

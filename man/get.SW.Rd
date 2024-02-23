@@ -4,7 +4,7 @@
 \alias{get.SW}
 \title{compute standardized IP weights for multivariate normal exposure}
 \usage{
-get.SW(A, L, coef.a.l, var.a.l, mean.a, cov.a)
+get.SW(A, L, ps.formula, coef.a.l, var.a.l, mean.a, cov.a)
 }
 \arguments{
 \item{A}{a matrix of numbers, possibly multivariate continuous exposure

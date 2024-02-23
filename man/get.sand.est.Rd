@@ -4,7 +4,7 @@
 \alias{get.sand.est}
 \title{Sandwich variance estimator}
 \usage{
-get.sand.est(ghat, get.psi, n = NULL)
+get.sand.est(ghat, get.psi, n)
 }
 \arguments{
 \item{ghat}{a numeric vector, estimated parameters}

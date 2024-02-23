@@ -4,9 +4,15 @@
 \alias{get.psi.glm}
 \title{Oracle GLM estimating function}
 \usage{
-get.psi.glm(Y, A, L, g, formula, inv.link, d.inv.link, return.sums = T)
+get.psi.glm(data, g, args, return.sums = T)
 }
 \arguments{
+\item{g}{a numeric vector, coefficients in GLM Y~A+L}
+
+\item{return.sums}{a logical, indicator for whether a sum of estimating
+function values (as opposed to individual values) is to be returned
+(default is TRUE)}
+
 \item{Y}{a numeric vector, outcome variable}
 
 \item{A}{a matrix of numbers, possibly multivariate continuous exposure
@@ -14,15 +20,9 @@ values with rows corresponding to observations}
 
 \item{L}{a vector of numbers, confounding variable}
 
-\item{g}{a numeric vector, coefficients in GLM Y~A+L}
-
 \item{inv.link}{a function, inverse link function}
 
 \item{d.inv.link}{a function, derivative of inv.link}
-
-\item{return.sums}{a logical, indicator for whether a sum of estimating
-function values (as opposed to individual values) is to be returned
-(default is TRUE)}
 }
 \value{
 individual or summation estimating function values

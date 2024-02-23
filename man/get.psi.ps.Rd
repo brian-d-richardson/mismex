@@ -4,7 +4,7 @@
 \alias{get.psi.ps}
 \title{propensity score estimating function}
 \usage{
-get.psi.ps(A, L, coef.a.l, var.a.l, return.sums = T)
+get.psi.ps(A, L, ps.formula, coef.a.l, var.a.l, return.sums = T)
 }
 \arguments{
 \item{A}{a matrix of numbers, possibly multivariate continuous exposure

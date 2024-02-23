@@ -5,7 +5,7 @@
 
 # Brian Richardson
 
-# 2024-02-13
+# 2024-02-20
 
 # Purpose: develop G-formula estimator under mismeasured exposure
 
@@ -20,31 +20,38 @@ library(statmod)
 library(pbapply)
 library(ggplot2)
 library(dplyr)
+library(tidyverse)
 library(MASS)
 #setwd(dirname(getwd()))
 load_all()
 
 # define parameters -------------------------------------------------------
 
-seed <- 2                                       # random seed
+seed <- 3                                       # random seed
 n <- 800                                        # sample size
 B <- 80                                         # MC replicates
-var.e <- 0.25                                   # var(epsilon)
+cov.e <- vare                                   # var(epsilon)
+mc.seed <- 123                                  # MC seed
 inv.link <- inv.logit                           # inverse link
 d.inv.link <- d.inv.logit                       # deriv of inv link
 g <- c(-2, 0.7, -0.6, 0.4, -0.4, -0.2)          # outcome model parameters
 formula <- "~A*L1 + A*L2"                       # outcome model formula
+args <- list(formula = formula,                 # model fitting arguments
+             inv.link = inv.link,
+             d.inv.link = d.inv.link)
 
 # according to DGP #1 in Blette submission
 set.seed(seed)
 L1 <- rbinom(n, 1, 0.5)                                        # confounder 1
 L2 <- rbinom(n, 1, 0.2)                                        # confounder 2
-L <- cbind(L1, L2)
 A <- rnorm(n, 2 + 0.3*L1 - 0.5*L2, sqrt(0.6))
 EY <- inv.link(model.matrix(as.formula(formula)) %*% g)        # mean of outcome
 Y <- rbinom(n, 1, EY)                                          # outcome
-Astar <- A + rnorm(n, 0, sqrt(var.e))                          # mismeasured A
+Astar <- A + rnorm(n, 0, sqrt(cov.e))                          # mismeasured A
 a <- seq(min(A), max(A), length = 10)            # exposure values of interest
+dat0 <- data.frame(Y, A, L1, L2)                 # oracle data
+datstar <- data.frame(Y, Astar, L1, L2)          # mismeasured data
+colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L1", "L2")
 
 # search over grid of B ---------------------------------------------------
 
@@ -58,10 +65,10 @@ search.out <- pbvapply(
   FUN = function(ii) {
 
     st <- Sys.time()
-    psi <- get.psi.glm.mccs(
-      Y = Y, Astar = Astar, L = L, g = g, formula = formula,
-      inv.link = inv.link, d.inv.link = d.inv.link,
-      var.e = var.e, B = B.grid[ii])
+    get.psi.glm.mccs <- make.mccs(
+      get.psi = get.psi.glm, data = datstar, args = args,
+      cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
+    psi <- get.psi.glm.mccs(x = g)
     et <- Sys.time()
 
     return(c(B = B.grid[ii],
@@ -71,7 +78,7 @@ search.out <- pbvapply(
   t() %>%
   as.data.frame()
 
-write.csv(search.out, "simulation/sim_data/param_tuning/gfmla_res.csv", row.names = F)
+#write.csv(search.out, "simulation/sim_data/param_tuning/gfmla_res.csv", row.names = F)
 
 # plot results ------------------------------------------------------------
 
@@ -92,18 +99,18 @@ ggplot(data = search.out.long,
 
 # estimate E{Y(a)} at grid of a -------------------------------------------
 
-# oracle g-formula
-gfmla.oracle <- fit.gfmla(Y = Y, A = A, L = L, a = a, formula = formula,
-                          inv.link = inv.link, d.inv.link = d.inv.link)
-
 # g-formula
-gfmla.naive <- fit.gfmla(Y = Y, A = Astar, L = L, a = a, formula = formula,
-                         inv.link = inv.link, d.inv.link = d.inv.link)
+gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args)
+
+# oracle g-formula
+gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
+                          start = gfmla.naive$est[1:length(g)])
 
 # corrected g-formula
-gfmla.mccs <- fit.gfmla.mccs(Y = Y, A = Astar, L = L, a = a, formula = formula,
-                             var.e = var.e, B = B, seed = seed,
-                             inv.link = inv.link, d.inv.link = d.inv.link)
+#data = datstar; start = gfmla.naive$est[1:length(g)]
+gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
+                             cov.e = cov.e, B = B, mc.seed = mc.seed,
+                             start = gfmla.naive$est[1:length(g)])
 
 # format data for dose response curve plot --------------------------------
 

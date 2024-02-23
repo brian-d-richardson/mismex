@@ -12,16 +12,14 @@
 
 # setup -------------------------------------------------------------------
 
+rm(list = ls())
 library(rootSolve)
 library(MASS)
 library(mvtnorm)
 library(tidyr)
-source("R/estimating_functions.R")
-source("R/fit_equations.R")
-source("R/link_functions.R")
-source("R/misc_helpers.R")
-source("R/sandwich_estimation.R")
-source("R/simulation.R")
+library(devtools)
+#setwd(dirname(getwd()))
+load_all()
 
 # simulation parameters ---------------------------------------------------
 
@@ -34,8 +32,8 @@ n.sim <- 1
 
 # varied parameters
 n <- 800                          # sample size
-B <- 80                           # number of MC replicates
-vare <- 0.05                      # measurement error variance for A1, A2
+B <- 2                           # number of MC replicates
+vare <- 0.0005                      # measurement error variance for A1, A2
 
 # run simulations ---------------------------------------------------------
 
@@ -61,4 +59,4 @@ sim.out <- pbapply::pbvapply(
 
 # save sim results
 write.csv(sim.out, row.names = F,
-          paste0("sim_data/cme_ipw/sd", as.integer(args), ".csv"))
+          paste0("simulation/sim_data/ipw_data/sd", as.integer(args), ".csv"))
