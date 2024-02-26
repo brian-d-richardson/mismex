@@ -4,14 +4,9 @@
 \alias{get.SW}
 \title{compute standardized IP weights for multivariate normal exposure}
 \usage{
-get.SW(A, L, ps.formula, coef.a.l, var.a.l, mean.a, cov.a)
+get.SW(data, ps.formula, coef.a.l, var.a.l, mean.a, cov.a)
 }
 \arguments{
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
-
 \item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
 
 \item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}

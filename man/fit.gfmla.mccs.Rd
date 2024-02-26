@@ -5,16 +5,12 @@
 \title{Fit MCCS G-formula estimating equation}
 \usage{
 fit.gfmla.mccs(
-  Y,
-  Astar,
-  L,
+  data,
+  args,
   a,
-  formula,
-  var.e,
+  cov.e,
   B,
-  seed = 123,
-  inv.link,
-  d.inv.link,
+  mc.seed,
   start = NULL,
   return.var = TRUE
 )

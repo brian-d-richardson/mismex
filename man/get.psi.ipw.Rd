@@ -4,43 +4,20 @@
 \alias{get.psi.ipw}
 \title{Oracle IPW estimating function}
 \usage{
-get.psi.ipw(
-  Y,
-  A,
-  L,
-  g,
-  formula,
-  ps.formula,
-  inv.link,
-  d.inv.link,
-  coef.a.l,
-  var.a.l,
-  mean.a,
-  cov.a,
-  return.sums = T
-)
+get.psi.ipw(data, g, args, mean.a, cov.a, return.sums = T)
 }
 \arguments{
-\item{Y}{a numeric vector, outcome variable}
-
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
-
 \item{g}{a numeric vector, coefficients in the MSM Y~A}
-
-\item{inv.link}{a function, link function}
-
-\item{d.inv.link}{a function, derivative of inv.link}
-
-\item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
-
-\item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}
 
 \item{return.sums}{a logical, indicator for whether a sum of estimating
 function values (as opposed to individual values) is to be returned
 (default is TRUE)}
+
+\item{Y}{a numeric vector, outcome variable}
+
+\item{inv.link}{a function, link function}
+
+\item{d.inv.link}{a function, derivative of inv.link}
 }
 \value{
 individual or summation estimating function values

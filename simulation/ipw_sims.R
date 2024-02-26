@@ -28,12 +28,12 @@ args <- 1#commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
-n.sim <- 1
+n.sim <- 5
 
 # varied parameters
 n <- 800                          # sample size
-B <- 2                           # number of MC replicates
-vare <- 0.0005                      # measurement error variance for A1, A2
+B <- 80                           # number of MC replicates
+vare <- 0.05                      # measurement error variance for A1, A2
 
 # run simulations ---------------------------------------------------------
 

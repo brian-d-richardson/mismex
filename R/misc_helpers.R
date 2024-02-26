@@ -24,3 +24,22 @@ assess.ee <- function(ee, digits = 2) {
   return(list(means = round(means, digits),
               t.stats = round(t.stats, digits)))
 }
+
+# Format data for dose response curve plot
+#'
+#' @param a a matrix of numbers, columns correspond to components of the estimating equation, rows correspond to iid replicates
+#'
+#' @return a data frame
+#'
+#' @export
+format.gfmla.res <- function(a, res, alpha = 0.05) {
+  EYa <- tail(res$est, length(a))
+  se <- sqrt(tail(diag(res$var), length(a)))
+  drc.dat <- data.frame(
+    a = a,
+    est = EYa,
+    se = se,
+    lower = EYa - qnorm(1 - alpha / 2) * se,
+    upper = EYa + qnorm(1 - alpha / 2) * se)
+  return(drc.dat)
+}

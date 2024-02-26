@@ -35,10 +35,6 @@ values with rows corresponding to observations}
 \item{d.inv.link}{a function, derivative of inv.link}
 
 \item{start}{an optional numeric vector, starting parameter values}
-
-\item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
-
-\item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}
 }
 \value{
 root of GLM estimating function

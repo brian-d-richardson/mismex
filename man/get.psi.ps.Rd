@@ -4,14 +4,9 @@
 \alias{get.psi.ps}
 \title{propensity score estimating function}
 \usage{
-get.psi.ps(A, L, ps.formula, coef.a.l, var.a.l, return.sums = T)
+get.psi.ps(data, ps.formula, coef.a.l, var.a.l, return.sums = T)
 }
 \arguments{
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
-
 \item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
 
 \item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}
@@ -19,6 +14,11 @@ values with rows corresponding to observations}
 \item{return.sums}{a logical, indicator for whether a sum of estimating
 function values (as opposed to individual values) is to be returned
 (default is TRUE)}
+
+\item{A}{a matrix of numbers, possibly multivariate continuous exposure
+values with rows corresponding to observations}
+
+\item{L}{a vector of numbers, confounding variable}
 }
 \value{
 individual or summation estimating function values

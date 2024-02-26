@@ -145,7 +145,7 @@ sim.ipw <- function(n,
 
   ## for troubleshooting
   #library(MASS); library(devtools); load_all()
-  #n = 800; vare = 0.05; B = 80; seed = 1;
+  #n = 800; vare = 0.05; B = 20; seed = 1;
   #n = 800; vare = 0.0001; B = 2; seed = 1;
 
   gg <- c(0.4, 0.15, 0.15, 0.2,

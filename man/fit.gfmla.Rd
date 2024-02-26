@@ -4,31 +4,10 @@
 \alias{fit.gfmla}
 \title{Fit oracle G-formula estimating equation}
 \usage{
-fit.gfmla(
-  Y,
-  A,
-  L,
-  a,
-  formula,
-  inv.link,
-  d.inv.link,
-  start = NULL,
-  return.var = TRUE
-)
+fit.gfmla(data, args, a, start = NULL, return.var = TRUE)
 }
 \arguments{
-\item{Y}{a numeric vector, outcome variable}
-
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
-
 \item{a}{exposure value at which to estimate mean potential outcome}
-
-\item{inv.link}{a function, inverse link function}
-
-\item{d.inv.link}{a function, derivative of inv.link}
 
 \item{start}{an optional numeric vector, starting parameter values}
 }

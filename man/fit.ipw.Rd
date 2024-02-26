@@ -5,13 +5,8 @@
 \title{Fit oracle IPW estimating equation}
 \usage{
 fit.ipw(
-  Y,
-  A,
-  L,
-  formula,
-  ps.formula,
-  inv.link,
-  d.inv.link,
+  data,
+  args,
   start = NULL,
   return.var = TRUE,
   mean.a = NULL,
@@ -21,22 +16,7 @@ fit.ipw(
 )
 }
 \arguments{
-\item{Y}{a numeric vector, outcome variable}
-
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
-
-\item{inv.link}{a function, link function}
-
-\item{d.inv.link}{a function, derivative of inv.link}
-
 \item{start}{an optional numeric vector, starting parameter values}
-
-\item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
-
-\item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}
 }
 \value{
 root of IPW estimating function

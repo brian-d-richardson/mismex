@@ -115,25 +115,27 @@ fit.ipw.mccs <- function(data, args,
     terms(as.formula(formula)), data = data))
   len.ps <- ncol(model.matrix(terms(as.formula(ps.formula)), # PS model params
                               data = data))                  # dim of ps params
-
-  # compute marginal mean and covariance of A if not supplied
-  if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(Astar)) }
-  if (is.null(cov.a)) {
-    if (is.vector(Astar)) {
-      cov.a <- var(Astar)
-    } else {
-      cov.a <- cov(Astar)
-    }
-  }
+  d.cov.e <- diag(as.matrix(cov.e))                          # cov.e vector
 
   # set starting value if not supplied
   if (is.null(start)) { start <- rep(0, len.msm) }
+
+  # compute marginal mean and covariance of A if not supplied
+  if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
+  if (is.null(cov.a)) {
+    if (is.vector(A)) {
+      cov.a <- var(A) - cov.e
+    } else {
+      cov.a <- cov(A) - cov.e
+    }
+  }
 
   # fit propensity score model if not supplied
   if (is.null(coef.a.l)) {
     model.a.l <- lm(as.formula(paste0("A", ps.formula)))
     coef.a.l <- t(coef(model.a.l))
-    var.a.l <- apply(model.a.l$residuals, 2, var) - diag(cov.e)
+    var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) -
+      d.cov.e
   }
 
   ## get naive estimates to use as starting values
@@ -179,7 +181,7 @@ fit.ipw.mccs <- function(data, args,
               data = data, ps.formula = ps.formula,
               coef.a.l = matrix(x[len.msm + 1:(len.A*len.ps)],
                                 ncol = len.ps, byrow = F),
-              var.a.l = exp(tail(x, len.A)),
+              var.a.l = exp(tail(x, len.A)),# + d.cov.e,
               return.sums = F)) }),
       warning = function(w) {message(w); evar},
       error = function(e) {message(e); evar})

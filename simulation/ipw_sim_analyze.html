@@ -11,7 +11,7 @@
 
 <meta name="author" content="Brian Richardson" />
 
-<meta name="date" content="2024-02-23" />
+<meta name="date" content="2024-02-25" />
 
 <title>CME CS IPW Simulation Results</title>
 
@@ -1469,7 +1469,7 @@ display: none;
 
 <h1 class="title toc-ignore">CME CS IPW Simulation Results</h1>
 <h4 class="author">Brian Richardson</h4>
-<h4 class="date">02/23/2024</h4>
+<h4 class="date">02/25/2024</h4>
 
 </div>
 
@@ -1557,7 +1557,7 @@ sim.out.list &lt;- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0(&quot;sim_data/ipw_data/sd&quot;,
+          read.csv(paste0(&quot;sim_data/ipw_data/version3/sd&quot;,
                           clust, &quot;.csv&quot;)))
   })
 
@@ -2051,7 +2051,7 @@ CI
 0.121
 </td>
 <td style="text-align:right;">
-0.104
+0.103
 </td>
 <td style="text-align:right;">
 -0.002

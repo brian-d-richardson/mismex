@@ -5,16 +5,11 @@
 \title{Fit MCCS IPW estimating equation}
 \usage{
 fit.ipw.mccs(
-  Y,
-  Astar,
-  L,
-  formula,
-  ps.formula,
-  var.e,
+  data,
+  args,
+  cov.e,
   B,
-  seed = 123,
-  inv.link,
-  d.inv.link,
+  mc.seed = 123,
   start = NULL,
   return.var = TRUE,
   mean.a = NULL,
@@ -24,19 +19,7 @@ fit.ipw.mccs(
 )
 }
 \arguments{
-\item{Y}{a numeric vector, outcome variable}
-
-\item{L}{a vector of numbers, confounding variable}
-
-\item{inv.link}{a function, link function}
-
-\item{d.inv.link}{a function, derivative of inv.link}
-
 \item{start}{an optional numeric vector, starting parameter values}
-
-\item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
-
-\item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}
 }
 \value{
 root of MCCS IPW estimating function
