@@ -65,29 +65,34 @@ args <- list(formula = formula,                          # arguments for fitting
 B.grid <- seq(1, 100, by = 1)
 
 # store psi and computation time B (takes ~ 30 seconds)
-#search.out <- pbvapply(
-#  X = 1:length(B.grid),
-# FUN.VALUE = numeric(8),
-#  FUN = function(ii) {
+run.search <- F
+if (run.search) {
 
-    # create MCCS GLM estimating function
-#    get.psi.glm.mccs <- make.mccs(
-#      get.psi = get.psi.glm, data = datstar, args = args,
-#      cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
+  search.out <- pbvapply(
+    X = 1:length(B.grid),
+   FUN.VALUE = numeric(8),
+    FUN = function(ii) {
 
-#    st <- Sys.time()
-#    psi <- get.psi.glm.mccs(x = g)
-#    et <- Sys.time()
+      # create MCCS GLM estimating function
+      get.psi.glm.mccs <- make.mccs(
+        get.psi = get.psi.glm, data = datstar, args = args,
+        cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
 
-#    return(c(B = B.grid[ii],
-#             psi = psi,
-#             Time = et - st))
-#  }) %>%
-#  t() %>%
-#  as.data.frame()
+      st <- Sys.time()
+      psi <- get.psi.glm.mccs(x = g)
+      et <- Sys.time()
 
-# save results
-#write.csv(search.out, "simulation/sim_data/param_tuning/dr_res.csv", row.names = F)
+      return(c(B = B.grid[ii],
+               psi = psi,
+               Time = et - st))
+    }) %>%
+    t() %>%
+    as.data.frame()
+
+  # save results
+  write.csv(search.out, "simulation/sim_data/param_tuning/dr_res.csv", row.names = F)
+
+}
 
 # load results
 search.out <- read.csv("simulation/sim_data/param_tuning/dr_res.csv")
@@ -103,7 +108,6 @@ ggplot(data = search.out.long,
              scales = "free") +
   labs(y = "") +
   ggtitle("Score Values and Computation Time by Number of MC Replicates B")
-
 
 # PART II: estimate dose response curves with DR method -------------------
 
@@ -235,32 +239,39 @@ est.all <- function(ps.formula, formula) {
   return(dat)
 }
 
-# (00) both models correct
-res.00 <- est.all(ps.formula = ps.formula,
-                  formula = formula)
+# (takes several minutes to run)
+run.est <- F
+if (run.est) {
 
-# (10) PS incorrect, outcome correct
-res.10 <- est.all(ps.formula = ps.formula.inc,
-                  formula = formula)
+  # (00) both models correct
+  res.00 <- est.all(ps.formula = ps.formula,
+                    formula = formula)
 
-# (01) PS correct, outcome incorrect
-res.01 <- est.all(ps.formula = ps.formula,
-                  formula = formula.inc)
+  # (10) PS incorrect, outcome correct
+  res.10 <- est.all(ps.formula = ps.formula.inc,
+                    formula = formula)
 
-# (11) both models incorrect
-res.11 <- est.all(ps.formula = ps.formula.inc,
-                  formula = formula.inc)
+  # (01) PS correct, outcome incorrect
+  res.01 <- est.all(ps.formula = ps.formula,
+                    formula = formula.inc)
 
-# combine results
-res <- rbind(cbind(ps = 0, out = 0, res.00),
-             cbind(ps = 1, out = 0, res.10),
-             cbind(ps = 0, out = 1, res.01),
-             cbind(ps = 1, out = 1, res.11)) %>%
-  mutate(lower = est - qnorm(0.975) * se,
-         upper = est + qnorm(0.975) * se)
+  # (11) both models incorrect
+  res.11 <- est.all(ps.formula = ps.formula.inc,
+                    formula = formula.inc)
 
-# load/save results (takes several minutes to run)
-write.csv(res, "development/dev_data/dr_dev.csv", row.names = F)
+  # combine results
+  res <- rbind(cbind(ps = 0, out = 0, res.00),
+               cbind(ps = 1, out = 0, res.10),
+               cbind(ps = 0, out = 1, res.01),
+               cbind(ps = 1, out = 1, res.11)) %>%
+    mutate(lower = est - qnorm(0.975) * se,
+           upper = est + qnorm(0.975) * se)
+
+  # save results
+  write.csv(res, "development/dev_data/dr_dev.csv", row.names = F)
+}
+
+# load results
 res <- read.csv("development/dev_data/dr_dev.csv") %>%
   as.data.frame() %>%
   mutate(method = factor(method,

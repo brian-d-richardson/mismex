@@ -20,18 +20,20 @@ load_all()
 
 ```
 
-The goal of this program is to evaluate the Monte Carlo Corrected Score Inverse Probability Weighting (MCCS IPW) estimator in the presence of confounding and measurement error.
+The goal of this program is to evaluate the Monte Carlo corrected score G-formula (MCCS G-FMLA) estimator in the presence of confounding and measurement error.
 
 ## Setup
 
 Consider the following setup:
 
-* two ndependent binary confounders $L_1 \sim \textrm{Bernoulli}(0.5), L_2 \sim \textrm{Bernoulli}(0.2)$,
+* two independent binary confounders $L_1 \sim \textrm{Bernoulli}(0.5), L_2 \sim \textrm{Bernoulli}(0.2)$,
 * univariate continuous exposure $A$ with $A|L_1,L_2 \sim N(2+0.3L_1-0.5L_2, 0.6)$,
 * mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.25)$,
-* Binary outcome $Y$ with $\textrm{E}(Y|A,L) = \textrm{logit}^{-1}(-2+0.7A-0.6L_1+0.4L_2-0.4AL_1-0.2AL_2)$.
+* binary outcome $Y$ with $\textrm{E}(Y|A,L) = \textrm{logit}^{-1}(-2+0.7A-0.6L_1+0.4L_2-0.4AL_1-0.2AL_2)$.
 
-This data generating process leads to a mean potential outcome at $a$ of $\textrm{E}\{Y(a)\} = 0.4\textrm{logit}^{-1}(-2+0.7a) + 0.4\textrm{logit}^{-1}(-2.6+0.3a) + 0.1\textrm{logit}^{-1}(-1.6+0.5a) + 0.1\textrm{logit}^{-1}(-2.2+0.1a)$
+This data generating process leads to a mean potential outcome at $a$ of $\textrm{E}\{Y(a)\} = 0.4\textrm{logit}^{-1}(-2+0.7a) + 0.4\textrm{logit}^{-1}(-2.6+0.3a) + 0.1\textrm{logit}^{-1}(-1.6+0.5a) + 0.1\textrm{logit}^{-1}(-2.2+0.1a)$.
+
+The estimand of interest in these simulations is the dose response curve $\{\textrm{E}[Y(a)] : a \in \mathcal{A}\}$.
 
 ## Methods
 
@@ -46,9 +48,11 @@ In these simulations, we compare six methods:
 
 The GLM methods fit a logistic regression mode of $Y$ on $A$ and $L$ with all interaction terms between $A$ and $L$, then estimate $\textrm{E}\{Y(a)\}$ with $\textrm{logit}^{-1}(\widehat\beta_0+\widehat\beta_aa)$. The G-formula methods fit the same logistic regression models, then estimate $\textrm{E}\{Y(a)\}$ with $n^{-1}\sum_{i=1}^n\textrm{logit}^{-1}(\widehat\beta_0+\widehat\beta_Aa+\widehat\beta_{L_1}L_{1i}+\widehat\beta_{L_2}L_{2i}+\widehat\beta_{A:L_1}aL_{1i}+\widehat\beta_{A:L_2}aL_{2i})$.
 
-The oracle methods use the true exposure values $A$, which are not observed in practice. The naive methods treat $A^*$ as $A$, assuming there is no measurement error. The corrected methods use the Monte-Carlo corrected score versions of the estimating functions, which (in theory) account for measurement error.
+The oracle methods use the true exposure values $A$, which are not observed in practice. The naive methods treat $A^*$ as $A$, assuming there is no measurement error. The corrected methods use the Monte-Carlo corrected score versions of the estimating functions, which account for measurement error.
 
 ## Results
+
+We first check for simulations with errors.
 
 ```{r}
 
@@ -98,6 +102,8 @@ sim.out.long <- sim.out %>%
 
 ```
 
+We first check for simulations with errors.
+
 ```{r}
 
 # summarize proportion of missing data by setting
@@ -109,8 +115,6 @@ sim.out.long %>%
   ungroup()
 
 ```
-
-Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(3)\}$.
 
 ```{r}
 
@@ -218,11 +222,11 @@ plot.by.a <- function(a.,
 
 ```
 
-### Raw data plots
+### Plots of Simulation Results
 
-These plots show all simulation results. They are difficult to read due to some extreme corrected GLM estimates.
+Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at exposure values $a = 0,1,2,3,4$.
 
-```{r message = F}
+```{r message = F, eval = F}
 
 plot.by.a(a. = 0)
 plot.by.a(a. = 1)
@@ -231,10 +235,6 @@ plot.by.a(a. = 3)
 plot.by.a(a. = 4)
 
 ```
-
-### Zoomed-in plots
-
-These plots show zoom in to the relevant simulation results.
 
 ```{r message = F}
 
@@ -248,7 +248,7 @@ plot.by.a(a. = 4, est_cutoff = 2)
 
 ### Primary Plot
 
-This plot shows only the simulation setting considered in the g-formula sims in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$, and only includes g-formula results.
+This plot shows only the simulation setting considered in the g-formula simulations in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$, and only includes g-formula results.
 
 ```{r}
 
@@ -258,7 +258,7 @@ plot.by.a(a. = 3, method. = c("OG", "NG", "CG"), n. = 800, vare. = 0.25)
 
 ### Primary Table
 
-Below is a table of the setting considered in the g-formula sims in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$. It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and mean squared error.
+Below is a table of the setting considered in the g-formula simulations in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$. It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and mean squared error (MSE).
 
 ```{r}
 
@@ -284,7 +284,7 @@ tbl.a3 %>%
 
 Below is a table with a sample size of $n=8000$.
 
-```{r eval = F}
+```{r}
 
 tbl.a3.n8k <- sim.out.long %>% 
   filter(a == 3,
@@ -330,13 +330,4 @@ setNames(tbl, sub(".+_", "", names(tbl))) %>%
                      "E{Y(4)}" = 3))
   
 ```
-
-## Questions
-
-* Variance estimation of the corrected g-formula method doesn't perform very well for $n=800$. It improves for larger sample size ($n=8000$). What to do?
-
-* Is the GLM comparator $\widehat{\textrm{E}}\{Y(a)\} = \textrm{logit}^{-1}(\widehat\beta_0+\widehat\beta_aa)$ fair? A slightly less naive approach would be $\widehat{\textrm{E}}\{Y(a)\} = \textrm{logit}^{-1}\{\widehat\beta_0+\widehat\beta_Aa+\widehat\beta_{L_1}\widehat{\textrm{E}}(L_{1})+\widehat\beta_{L_2}\widehat{\textrm{E}}(L_{2})+\widehat\beta_{A:L_1}a\widehat{\textrm{E}}(L_{1})+\widehat\beta_{A:L_2}a\widehat{\textrm{E}}(L_{2})\}$. The original paper says this method is "in essence assuming that adjusting for $L_1$ and $L_2$ in the models will appropriately control for confounding. While this is not a correct interpretation of these model coefficients (since these methods actually target conditional estimands), this interpretation reflects how adjusted outcome models are often misused in practice." This method performs so poorly that it makes the naive g-formula method (which is really the main comparator of interest) look reasonable.
-
-
-
 

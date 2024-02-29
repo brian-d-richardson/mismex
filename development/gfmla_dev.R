@@ -30,7 +30,7 @@ load_all()
 seed <- 3                                       # random seed
 n <- 800                                        # sample size
 B <- 80                                         # MC replicates
-cov.e <- vare                                   # var(epsilon)
+cov.e <- 0.25                                   # var(epsilon)
 mc.seed <- 123                                  # MC seed
 inv.link <- inv.logit                           # inverse link
 d.inv.link <- d.inv.logit                       # deriv of inv link
@@ -59,26 +59,30 @@ colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L1", "L2")
 B.grid <- seq(1, 100, by = 1)
 
 # store psi and computation time B (takes ~ 30 seconds)
-search.out <- pbvapply(
-  X = 1:length(B.grid),
-  FUN.VALUE = numeric(8),
-  FUN = function(ii) {
+run.search <- F
+if (run.search) {
 
-    st <- Sys.time()
-    get.psi.glm.mccs <- make.mccs(
-      get.psi = get.psi.glm, data = datstar, args = args,
-      cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
-    psi <- get.psi.glm.mccs(x = g)
-    et <- Sys.time()
+  search.out <- pbvapply(
+    X = 1:length(B.grid),
+    FUN.VALUE = numeric(8),
+    FUN = function(ii) {
 
-    return(c(B = B.grid[ii],
-             psi = psi,
-             Time = et - st))
-  }) %>%
-  t() %>%
-  as.data.frame()
+      st <- Sys.time()
+      get.psi.glm.mccs <- make.mccs(
+        get.psi = get.psi.glm, data = datstar, args = args,
+        cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
+      psi <- get.psi.glm.mccs(x = g)
+      et <- Sys.time()
 
-#write.csv(search.out, "simulation/sim_data/param_tuning/gfmla_res.csv", row.names = F)
+      return(c(B = B.grid[ii],
+               psi = psi,
+               Time = et - st))
+    }) %>%
+    t() %>%
+    as.data.frame()
+
+  write.csv(search.out, "simulation/sim_data/param_tuning/gfmla_res.csv", row.names = F)
+}
 
 # plot results ------------------------------------------------------------
 
@@ -154,7 +158,8 @@ ggplot(data = drc.dat,
   geom_line() +
   geom_ribbon(alpha = 0.3) +
   facet_grid(~Method) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  labs(y = "Estimated E{Y(a)} with 95% CI")
 
 drc.dat %>%
   group_by(Method) %>%

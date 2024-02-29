@@ -1,5 +1,5 @@
 ---
-title: "CME CS IPW Simulation Results"
+title: "MCCS IPW Simulation Results"
 author: "Brian Richardson"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output:
@@ -18,19 +18,21 @@ library(kableExtra)
 
 ```
 
-The goal of this program is to evaluate the Monte Carlo Corrected Score Inverse Probability Weighting (MCCS IPW) estimator in the presence of confounding and measurement error.
+The goal of this program is to evaluate the Monte Carlo corrected score inverse probability weighting (MCCS IPW) estimator in the presence of confounding and measurement error.
 
 ## Setup
 
 Consider the following setup:
 
 * continuous confounder $L \sim U(0, 1)$,
-* Trivariate continuous exposure $\pmb{A} = (A_1, A_2, A_3)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_3\left(\begin{bmatrix} 0.4L \\ -0.4L \\ 0.2 - 0.1L \end{bmatrix}, \begin{bmatrix} 0.09 & 0 & 0 \\ 0 & 0.09 & 0 \\ 0 & 0 & 0.09 \end{bmatrix}\right)$. 
+* trivariate continuous exposure $\pmb{A} = (A_1, A_2, A_3)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_3\left(\begin{bmatrix} 0.4L \\ -0.4L \\ 0.2 - 0.1L \end{bmatrix}, \begin{bmatrix} 0.09 & 0 & 0 \\ 0 & 0.09 & 0 \\ 0 & 0 & 0.09 \end{bmatrix}\right)$. 
 * mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2,  A^*_3)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2, \epsilon_3)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, $\pmb{\Sigma}_e = \begin{bmatrix} \sigma_e^2 & 0 & 0 \\ 0 & \sigma_e^2 & 0 \\ 0 & 0 & 0\end{bmatrix}$.
-* Binary outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) =  \widetilde\gamma_0 + \widetilde\gamma_1 a_1 + \widetilde\gamma_2 a_2 + \widetilde\gamma_3 a_3 + \widetilde\gamma_4L + \widetilde\gamma_5 a_1L + \widetilde\gamma_6 a_2L + \widetilde\gamma_7 a_3L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3, \widetilde\gamma_4, \widetilde\gamma_5, \widetilde\gamma_6, \widetilde\gamma_7)^T = (0.4, 0.15, 0.15, 0.2, 0.1, 0.1, 0, -0.1)^T$.
+* binary outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) =  \widetilde\gamma_0 + \widetilde\gamma_1 a_1 + \widetilde\gamma_2 a_2 + \widetilde\gamma_3 a_3 + \widetilde\gamma_4L + \widetilde\gamma_5 a_1L + \widetilde\gamma_6 a_2L + \widetilde\gamma_7 a_3L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3, \widetilde\gamma_4, \widetilde\gamma_5, \widetilde\gamma_6, \widetilde\gamma_7)^T = (0.4, 0.15, 0.15, 0.2, 0.1, 0.1, 0, -0.1)^T$.
 
 This data generating process leads to the marginal structural model
 $\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2 + \gamma_3 a_3$, where $\pmb{\gamma} = (\gamma_0, \gamma_1, \gamma_2, \gamma_3)^T = (0.45, 0.2, 0.15, 0.15)^T$.
+
+The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in the marginal structural model.
 
 ## Methods
 
@@ -58,7 +60,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/ipw_data/version3/sd",
+          read.csv(paste0("sim_data/ipw_data/sd",
                           clust, ".csv")))
   })
 
@@ -94,6 +96,8 @@ sim.out.long <- sim.out %>%
 
 ```
 
+We first check for simulations with errors.
+
 ```{r}
 
 # summarize proportion of missing data by setting
@@ -105,6 +109,8 @@ sim.out.long %>%
   ungroup()
 
 ```
+
+### Plots of simulation results
 
 Below are boxplots of the empirical distributions of estimators for $\pmb{\gamma}$.
 
@@ -192,6 +198,8 @@ plot.by.var <- function(vare. = 0.05, est_cutoff = Inf) {
 plot.by.var()
 
 ```
+
+### Table of Simulation Results
 
 Below is a table of the empirical bias, empirical standard error, and mean estimated standard error of $\widehat{\pmb{\gamma}}$.
 

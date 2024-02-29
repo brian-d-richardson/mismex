@@ -35,7 +35,7 @@ fit.ipw <- function(data, args,
 
   # fit propensity score model
   if (is.null(coef.a.l) | is.null(var.a.l)) {
-    model.a.l <- lm(as.formula(paste0("A", ps.formula)))
+    model.a.l <- lm(as.formula(paste0("A", ps.formula)), data = data)
     coef.a.l <- t(coef(model.a.l))
     var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var)
   }
@@ -132,7 +132,7 @@ fit.ipw.mccs <- function(data, args,
 
   # fit propensity score model if not supplied
   if (is.null(coef.a.l)) {
-    model.a.l <- lm(as.formula(paste0("A", ps.formula)))
+    model.a.l <- lm(as.formula(paste0("A", ps.formula)), data = data)
     coef.a.l <- t(coef(model.a.l))
     var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) -
       d.cov.e

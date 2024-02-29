@@ -1,0 +1,196 @@
+---
+title: "MCCS DR Simulation Results"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(kableExtra)
+library(devtools)
+load_all()
+
+```
+
+The goal of this program is to evaluate the Monte Carlo corrected score double robust (MCCS DR) estimator in the presence of confounding, measurement error, and possible model misspecification.
+
+## Setup
+
+Consider the following setup:
+
+* sample size $n=2000$,
+* two independent confounders $L_1 \sim \textrm{Bernoulli}(0.5), L_2 \sim N(1, 0.5)$
+* univariate exposure $A$, where $A|L \sim N(2 + 0.9L_1 - 0.6L2, 1.1)$
+* continuous outcome $Y$, with $Y|A,L \sim N(\gamma_0 + 0.7A + 0.9L_1 - 0.7L_2 + - 0.6AL_1 + 0.4AL_2, 0.16)$
+* resulting MSM $\textrm{E}\{Y(a)\} = \beta_0 + \beta_1a$, where $\pmb{\beta} = (\beta_0, \beta_1)^T = (1.35, 0.75)^T$
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.16)$
+
+The estimand of interest in these simulations is $\beta_1=0.75$, the coefficient for $a$ in the MSM.
+
+## Methods
+
+In these simulations, we consider four scenarios defined by whether the propensity score and outcome models are correctly specified. To misspecify the propensity  model, we omit the confounder $L_1$, and to misspecify the outcome model, we omit $L_1$ and its interaction with $A$.
+
+For each scenario, we compare nine methods:
+
+1) Oracle G-Formula
+2) Oracle IPW
+3) Oracle DR
+4) Naive G-Formula
+5) Naive IPW
+6) Naive DR
+4) Corrected G-Formula
+5) Corrected IPW
+6) Corrected DR
+
+The oracle methods use the true exposure values $A$, which are not observed in practice. The naive methods treat $A^*$ as $A$, assuming there is no measurement error. The corrected methods use the Monte-Carlo corrected score versions of the estimating functions, which account for measurement error.
+
+## Results
+
+We first check for simulations with errors.
+
+```{r}
+
+# true estimand
+g <- 0.75
+
+# load simulation results from each of 10 clusters
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/dr_data/sd",
+                          clust, ".csv")))
+  })
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list) %>% 
+  mutate(g.true = g,
+         method = factor(method,
+                         levels = c("gfmla", "ipw", "dr"),
+                         labels = c("G-Formula", "IPW", "Doubly Robust")),
+         type = factor(type,
+                       levels = c("oracle", "naive", "mccs"),
+                       labels = c("Oracle", "Naive", "MCCS")),
+         ps = factor(ps,
+                     levels = c(0, 1),
+                     labels = c("PS Correct", "PS Incorrect")),
+         out = factor(out,
+                      levels = c(0, 1),
+                      labels = c("Outcome Correct", "Outcome Incorrect")))
+
+# number of sims per setting
+n.rep <- nrow(sim.out) /
+  n_distinct(dplyr::select(sim.out, method, type, ps, out, n, B, vare))
+
+```
+
+```{r}
+
+# summarize proportion of missing data by setting
+sim.out %>% 
+  group_by(method, type, ps, out, n, B, vare) %>% 
+  summarise(prop.error = mean(is.na(est))) %>% 
+  filter(prop.error > 0) %>% 
+  ungroup()
+
+```
+
+```{r}
+
+# extract simulation parameters
+n <- unique(sim.out$n)
+B <- unique(sim.out$B)
+vare <- unique(sim.out$vare)
+
+# make labels for plots
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+B.labs <- paste0("B = ", B)
+names(B.labs) <- B
+
+vare.labs <- paste0("sigma_e = ", vare)
+names(vare.labs) <- vare
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
+
+```
+
+```{r}
+
+# separate plots for each sample size
+make.plot <- function(n. = n,
+                      vare. = vare) {
+  
+  sim.out %>% 
+    filter(n %in% n.,
+           vare %in% vare.) %>% 
+    ggplot(aes(x = type,
+               y = est,
+               fill = type,
+               color = type)) +
+    geom_boxplot() +
+    geom_hline(yintercept = g,
+               linetype = "dashed",
+               color = "orange") +
+    facet_grid(method ~ ps + out, scales = "free") +
+    labs(y = "Parameter Estimate",
+         fill = "Type",
+         color = "Type") +
+    ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+            subtitle = paste0(n.rep, " simulations per setting")) +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank()) +
+    scale_fill_manual(values = pal_light) +
+    scale_color_manual(values = pal_dark)
+}
+
+```
+
+### Plot of Simulation Results
+
+Below is a plot of the empirical distributions of the nine estimators under the four model specification scenarios.
+
+```{r message = F}
+
+make.plot()
+
+```
+
+### Table of Simulation Results
+
+The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and mean squared error (MSE) of the nine estimators under the four model specification scenarios.
+
+```{r}
+
+tbl <- sim.out %>% 
+  filter(n == 2000,
+         vare == 0.16) %>% 
+  group_by(method, type, ps, out) %>% 
+  summarise(bias = mean(est - g, na.rm = T),
+            emp.se = sd(est, na.rm = T),
+            est.se = mean(se, na.rm = T),
+            mse = mean((est - g.true)^2))
+
+tbl %>% 
+  kable(digits = 3,
+        col.names = c("Method", "Type", "PS Model", "Outcome Model",
+                      "Bias", "ESE", "ASE", "MSE"),
+        caption = "Estimated MSM Slope") %>%
+  kable_styling("striped")
+
+```
+
