@@ -32,7 +32,7 @@ sim.dr <- function(n,
   #n = 2000; vare = 0.0001; B = 2; seed = 1;
 
   mc.seed <- 123                                # MCCS seed
-  cov.e <- 0.16                                 # var(epsilon)
+  cov.e <- vare                                 # var(epsilon)
   inv.link <- inv.ident                         # inverse link
   d.inv.link <- d.inv.ident                     # deriv of inv link
   g <- c(1.5, 0.7, 0.9, -0.6, -0.7, 0.4)        # outcome model parameters

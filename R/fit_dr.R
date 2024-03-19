@@ -3,6 +3,13 @@
 #' @inheritParams get.psi.glm
 #' @inheritParams get.psi.ipw
 #' @inheritParams fit.glm
+#' @param args a list of arguments including
+#' \itemize{
+#' \item{`inv.link`: a function, inverse link function}
+#' \item{`d.inv.link`: a function, derivative of inv.link}
+#' \item{`formula`: a character string of outcome model formula}
+#' \item{`ps.formula`: a character string of propensity model formula}
+#' }
 #'
 #' @return a list of arguments including
 #' \itemize{
