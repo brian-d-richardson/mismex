@@ -7,22 +7,25 @@
 get.psi.glm(data, g, args, return.sums = T)
 }
 \arguments{
-\item{g}{a numeric vector, coefficients in GLM Y~A+L}
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
+
+\item{g}{a numeric vector, coefficients in outcome model E(Y|A,L)}
+
+\item{args}{a list of arguments including
+\itemize{
+\item{\code{inv.link}: a function, inverse link function}
+\item{\code{d.inv.link}: a function, derivative of inv.link}
+\item{\code{formula}: a character string of outcome model formula}
+}}
 
 \item{return.sums}{a logical, indicator for whether a sum of estimating
 function values (as opposed to individual values) is to be returned
 (default is TRUE)}
-
-\item{Y}{a numeric vector, outcome variable}
-
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
-
-\item{inv.link}{a function, inverse link function}
-
-\item{d.inv.link}{a function, derivative of inv.link}
 }
 \value{
 individual or summation estimating function values

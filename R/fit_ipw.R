@@ -1,10 +1,23 @@
 #' Fit oracle IPW estimating equation
 #'
 #' @inheritParams get.psi.ipw
+#' @inheritParams get.psi.ps
+#' @inheritParams fit.glm
 #'
-#' @param start an optional numeric vector, starting parameter values
+#' @param coef.a.l an optional numeric matrix, coefficients in propensity score
+#' model, computed if not specified
+#' @param var.a.l an optional numeric vector, variance of A|L in propensity
+#' score model, computed if not specified
+#' @param mean.a an optional numeric vector, the marginal mean of the exposure
+#' A, computed if not specified
+#' @param cov.a an optional numeric matrix, the marginal covariance of the
+#' exposure A, computed if not specified
 #'
-#' @return root of IPW estimating function
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.ipw <- function(data, args,
@@ -89,11 +102,14 @@ fit.ipw <- function(data, args,
 
 #' Fit MCCS IPW estimating equation
 #'
-#' @inheritParams get.psi.ipw
+#' @inheritParams fit.ipw
+#' @inheritParams make.mccs
 #'
-#' @param start an optional numeric vector, starting parameter values
-#'
-#' @return root of MCCS IPW estimating function
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.ipw.mccs <- function(data, args,

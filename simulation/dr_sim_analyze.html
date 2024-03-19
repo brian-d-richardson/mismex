@@ -11,7 +11,7 @@
 
 <meta name="author" content="Brian Richardson" />
 
-<meta name="date" content="2024-02-29" />
+<meta name="date" content="2024-03-14" />
 
 <title>MCCS DR Simulation Results</title>
 
@@ -1469,7 +1469,7 @@ display: none;
 
 <h1 class="title toc-ignore">MCCS DR Simulation Results</h1>
 <h4 class="author">Brian Richardson</h4>
-<h4 class="date">02/29/2024</h4>
+<h4 class="date">03/14/2024</h4>
 
 </div>
 
@@ -1551,6 +1551,9 @@ sim.out.list &lt;- lapply(
 # combine simulation results into 1 data frame
 sim.out &lt;- bind_rows(sim.out.list) %&gt;% 
   mutate(g.true = g,
+         ci.lower = est - qnorm(0.975) * se,
+         ci.upper = est + qnorm(0.975) * se,
+         ci.cov = g.true &gt;= ci.lower &amp; g.true &lt;= ci.upper,
          method = factor(method,
                          levels = c(&quot;gfmla&quot;, &quot;ipw&quot;, &quot;dr&quot;),
                          labels = c(&quot;G-Formula&quot;, &quot;IPW&quot;, &quot;Doubly Robust&quot;)),
@@ -1634,9 +1637,9 @@ under the four model specification scenarios.</p>
 <div id="table-of-simulation-results" class="section level3">
 <h3>Table of Simulation Results</h3>
 <p>The following table shows the empirical bias, empirical standard
-error (ESE), average estimated standard error (ASE), and mean squared
-error (MSE) of the nine estimators under the four model specification
-scenarios.</p>
+error (ESE), average estimated standard error (ASE), mean squared error
+(MSE), and empirical coverage probability of the 95% CIs for the nine
+estimators under the four model specification scenarios.</p>
 <pre class="r"><code>tbl &lt;- sim.out %&gt;% 
   filter(n == 2000,
          vare == 0.16) %&gt;% 
@@ -1644,13 +1647,14 @@ scenarios.</p>
   summarise(bias = mean(est - g, na.rm = T),
             emp.se = sd(est, na.rm = T),
             est.se = mean(se, na.rm = T),
-            mse = mean((est - g.true)^2))</code></pre>
+            mse = mean((est - g.true)^2),
+            ci.cov = mean(ci.cov, na.rm = T))</code></pre>
 <pre><code>## `summarise()` has grouped output by &#39;method&#39;, &#39;type&#39;, &#39;ps&#39;. You can override
 ## using the `.groups` argument.</code></pre>
 <pre class="r"><code>tbl %&gt;% 
   kable(digits = 3,
         col.names = c(&quot;Method&quot;, &quot;Type&quot;, &quot;PS Model&quot;, &quot;Outcome Model&quot;,
-                      &quot;Bias&quot;, &quot;ESE&quot;, &quot;ASE&quot;, &quot;MSE&quot;),
+                      &quot;Bias&quot;, &quot;ESE&quot;, &quot;ASE&quot;, &quot;MSE&quot;, &quot;CI Coverage&quot;),
         caption = &quot;Estimated MSM Slope&quot;) %&gt;%
   kable_styling(&quot;striped&quot;)</code></pre>
 <table class="table table-striped" style="margin-left: auto; margin-right: auto;">
@@ -1683,6 +1687,9 @@ ASE
 <th style="text-align:right;">
 MSE
 </th>
+<th style="text-align:right;">
+CI Coverage
+</th>
 </tr>
 </thead>
 <tbody>
@@ -1711,6 +1718,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.000
 </td>
+<td style="text-align:right;">
+0.950
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1736,6 +1746,9 @@ Outcome Incorrect
 </td>
 <td style="text-align:right;">
 0.005
+</td>
+<td style="text-align:right;">
+0.022
 </td>
 </tr>
 <tr>
@@ -1763,6 +1776,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.000
 </td>
+<td style="text-align:right;">
+0.950
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1789,6 +1805,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.022
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1814,6 +1833,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.009
+</td>
+<td style="text-align:right;">
+0.000
 </td>
 </tr>
 <tr>
@@ -1841,6 +1863,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.021
 </td>
+<td style="text-align:right;">
+0.000
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1866,6 +1891,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.009
+</td>
+<td style="text-align:right;">
+0.000
 </td>
 </tr>
 <tr>
@@ -1893,6 +1921,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.021
 </td>
+<td style="text-align:right;">
+0.000
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1918,6 +1949,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.000
+</td>
+<td style="text-align:right;">
+0.948
 </td>
 </tr>
 <tr>
@@ -1945,6 +1979,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.053
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1970,6 +2007,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.000
+</td>
+<td style="text-align:right;">
+0.948
 </td>
 </tr>
 <tr>
@@ -1997,6 +2037,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.053
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2023,6 +2066,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.004
 </td>
+<td style="text-align:right;">
+0.929
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2048,6 +2094,9 @@ Outcome Incorrect
 </td>
 <td style="text-align:right;">
 0.004
+</td>
+<td style="text-align:right;">
+0.929
 </td>
 </tr>
 <tr>
@@ -2075,6 +2124,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.112
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2101,6 +2153,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.112
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2127,6 +2182,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.012
 </td>
+<td style="text-align:right;">
+0.226
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2152,6 +2210,9 @@ Outcome Incorrect
 </td>
 <td style="text-align:right;">
 0.012
+</td>
+<td style="text-align:right;">
+0.226
 </td>
 </tr>
 <tr>
@@ -2179,6 +2240,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.020
 </td>
+<td style="text-align:right;">
+0.003
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2205,6 +2269,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.020
 </td>
+<td style="text-align:right;">
+0.003
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2230,6 +2297,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.005
+</td>
+<td style="text-align:right;">
+0.919
 </td>
 </tr>
 <tr>
@@ -2257,6 +2327,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.919
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2283,6 +2356,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.174
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2308,6 +2384,9 @@ Outcome Incorrect
 </td>
 <td style="text-align:right;">
 0.005
+</td>
+<td style="text-align:right;">
+0.174
 </td>
 </tr>
 <tr>
@@ -2334,6 +2413,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.000
+</td>
+<td style="text-align:right;">
+0.934
 </td>
 </tr>
 <tr>
@@ -2361,6 +2443,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.001
 </td>
+<td style="text-align:right;">
+0.901
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2386,6 +2471,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.000
+</td>
+<td style="text-align:right;">
+0.947
 </td>
 </tr>
 <tr>
@@ -2413,6 +2501,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.005
 </td>
+<td style="text-align:right;">
+0.075
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2438,6 +2529,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.009
+</td>
+<td style="text-align:right;">
+0.005
 </td>
 </tr>
 <tr>
@@ -2465,6 +2559,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.010
 </td>
+<td style="text-align:right;">
+0.093
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2490,6 +2587,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.009
+</td>
+<td style="text-align:right;">
+0.000
 </td>
 </tr>
 <tr>
@@ -2517,6 +2617,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.020
 </td>
+<td style="text-align:right;">
+0.000
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2542,6 +2645,9 @@ Outcome Correct
 </td>
 <td style="text-align:right;">
 0.001
+</td>
+<td style="text-align:right;">
+0.918
 </td>
 </tr>
 <tr>
@@ -2569,6 +2675,9 @@ Outcome Incorrect
 <td style="text-align:right;">
 0.002
 </td>
+<td style="text-align:right;">
+0.917
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2595,6 +2704,9 @@ Outcome Correct
 <td style="text-align:right;">
 0.000
 </td>
+<td style="text-align:right;">
+0.944
+</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2620,6 +2732,9 @@ Outcome Incorrect
 </td>
 <td style="text-align:right;">
 0.005
+</td>
+<td style="text-align:right;">
+0.145
 </td>
 </tr>
 </tbody>

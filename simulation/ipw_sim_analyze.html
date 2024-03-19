@@ -11,7 +11,7 @@
 
 <meta name="author" content="Brian Richardson" />
 
-<meta name="date" content="2024-02-29" />
+<meta name="date" content="2024-03-14" />
 
 <title>MCCS IPW Simulation Results</title>
 
@@ -1469,7 +1469,7 @@ display: none;
 
 <h1 class="title toc-ignore">MCCS IPW Simulation Results</h1>
 <h4 class="author">Brian Richardson</h4>
-<h4 class="date">02/29/2024</h4>
+<h4 class="date">03/14/2024</h4>
 
 </div>
 
@@ -1591,7 +1591,10 @@ sim.out.long &lt;- sim.out %&gt;%
   pivot_wider(names_from = name,
               values_from = val,
               id_cols = c(clust, n, B, vare, method,
-                          param, g.true, id))</code></pre>
+                          param, g.true, id)) %&gt;% 
+  mutate(ci.lower = ghat - qnorm(0.975) * stde,
+         ci.upper = ghat + qnorm(0.975) * stde,
+         ci.cov = g.true &gt;= ci.lower &amp; g.true &lt;= ci.upper)</code></pre>
 <p>We first check for simulations with errors.</p>
 <pre class="r"><code># summarize proportion of missing data by setting
 sim.out.long %&gt;% 
@@ -1682,14 +1685,16 @@ plot.by.var &lt;- function(vare. = 0.05, est_cutoff = Inf) {
 </div>
 <div id="table-of-simulation-results" class="section level3">
 <h3>Table of Simulation Results</h3>
-<p>Below is a table of the empirical bias, empirical standard error, and
-mean estimated standard error of <span class="math inline">\(\widehat{\pmb{\gamma}}\)</span>.</p>
+<p>Below is a table of the empirical bias, empirical standard error,
+mean estimated standard error, and empirical coverage probability of the
+95% CIs corresponding to <span class="math inline">\(\widehat{\pmb{\gamma}}\)</span>.</p>
 <pre class="r"><code>tbl &lt;- sim.out.long %&gt;% 
   group_by(param, method, n, B, vare) %&gt;% 
   summarise(bias = mean(ghat - g.true, na.rm = T),
             emp.se = sd(ghat, na.rm = T),
-            est.se = mean(stde)) %&gt;% 
-  gather(key, value, bias:est.se) %&gt;% 
+            est.se = mean(stde),
+            ci.cov = mean(ci.cov, na.rm = T)) %&gt;% 
+  gather(key, value, bias:ci.cov) %&gt;% 
   unite(Group, param, key) %&gt;% 
   spread(Group, value)</code></pre>
 <pre><code>## `summarise()` has grouped output by &#39;param&#39;, &#39;method&#39;, &#39;n&#39;, &#39;B&#39;. You can
@@ -1698,31 +1703,31 @@ mean estimated standard error of <span class="math inline">\(\widehat{\pmb{\gamm
   kable(digits = 3) %&gt;%
   kable_styling(&quot;striped&quot;) %&gt;%
   add_header_above(c(&quot; &quot; = 4,
-                     &quot;Component 1&quot; = 3,
-                     &quot;Component 2&quot; = 3,
-                     &quot;Component 3&quot; = 3,
-                     &quot;Component 4&quot; = 3))</code></pre>
+                     &quot;Component 1&quot; = 4,
+                     &quot;Component 2&quot; = 4,
+                     &quot;Component 3&quot; = 4,
+                     &quot;Component 4&quot; = 4))</code></pre>
 <table class="table table-striped" style="margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="empty-cells: hide;border-bottom:hidden;" colspan="4">
 </th>
-<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="3">
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="4">
 <div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 Component 1
 </div>
 </th>
-<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="3">
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="4">
 <div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 Component 2
 </div>
 </th>
-<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="3">
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="4">
 <div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 Component 3
 </div>
 </th>
-<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="3">
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="4">
 <div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 Component 4
 </div>
@@ -1745,13 +1750,7 @@ vare
 bias
 </th>
 <th style="text-align:right;">
-emp.se
-</th>
-<th style="text-align:right;">
-est.se
-</th>
-<th style="text-align:right;">
-bias
+ci.cov
 </th>
 <th style="text-align:right;">
 emp.se
@@ -1763,6 +1762,9 @@ est.se
 bias
 </th>
 <th style="text-align:right;">
+ci.cov
+</th>
+<th style="text-align:right;">
 emp.se
 </th>
 <th style="text-align:right;">
@@ -1770,6 +1772,21 @@ est.se
 </th>
 <th style="text-align:right;">
 bias
+</th>
+<th style="text-align:right;">
+ci.cov
+</th>
+<th style="text-align:right;">
+emp.se
+</th>
+<th style="text-align:right;">
+est.se
+</th>
+<th style="text-align:right;">
+bias
+</th>
+<th style="text-align:right;">
+ci.cov
 </th>
 <th style="text-align:right;">
 emp.se
@@ -1797,6 +1814,9 @@ OL
 -0.051
 </td>
 <td style="text-align:right;">
+0.776
+</td>
+<td style="text-align:right;">
 0.043
 </td>
 <td style="text-align:right;">
@@ -1804,6 +1824,9 @@ OL
 </td>
 <td style="text-align:right;">
 -0.045
+</td>
+<td style="text-align:right;">
+0.924
 </td>
 <td style="text-align:right;">
 0.110
@@ -1815,6 +1838,9 @@ OL
 -0.048
 </td>
 <td style="text-align:right;">
+0.911
+</td>
+<td style="text-align:right;">
 0.093
 </td>
 <td style="text-align:right;">
@@ -1822,6 +1848,9 @@ OL
 </td>
 <td style="text-align:right;">
 0.001
+</td>
+<td style="text-align:right;">
+0.951
 </td>
 <td style="text-align:right;">
 0.111
@@ -1847,6 +1876,9 @@ OL
 -0.050
 </td>
 <td style="text-align:right;">
+0.047
+</td>
+<td style="text-align:right;">
 0.014
 </td>
 <td style="text-align:right;">
@@ -1854,6 +1886,9 @@ OL
 </td>
 <td style="text-align:right;">
 -0.050
+</td>
+<td style="text-align:right;">
+0.706
 </td>
 <td style="text-align:right;">
 0.036
@@ -1865,6 +1900,9 @@ OL
 -0.050
 </td>
 <td style="text-align:right;">
+0.590
+</td>
+<td style="text-align:right;">
 0.030
 </td>
 <td style="text-align:right;">
@@ -1872,6 +1910,9 @@ OL
 </td>
 <td style="text-align:right;">
 -0.002
+</td>
+<td style="text-align:right;">
+0.949
 </td>
 <td style="text-align:right;">
 0.036
@@ -1897,6 +1938,9 @@ OI
 0.000
 </td>
 <td style="text-align:right;">
+0.904
+</td>
+<td style="text-align:right;">
 0.036
 </td>
 <td style="text-align:right;">
@@ -1904,6 +1948,9 @@ OI
 </td>
 <td style="text-align:right;">
 0.000
+</td>
+<td style="text-align:right;">
+0.917
 </td>
 <td style="text-align:right;">
 0.081
@@ -1915,6 +1962,9 @@ OI
 -0.001
 </td>
 <td style="text-align:right;">
+0.914
+</td>
+<td style="text-align:right;">
 0.081
 </td>
 <td style="text-align:right;">
@@ -1922,6 +1972,9 @@ OI
 </td>
 <td style="text-align:right;">
 -0.003
+</td>
+<td style="text-align:right;">
+0.926
 </td>
 <td style="text-align:right;">
 0.076
@@ -1947,6 +2000,9 @@ OI
 0.000
 </td>
 <td style="text-align:right;">
+0.951
+</td>
+<td style="text-align:right;">
 0.012
 </td>
 <td style="text-align:right;">
@@ -1954,6 +2010,9 @@ OI
 </td>
 <td style="text-align:right;">
 0.001
+</td>
+<td style="text-align:right;">
+0.941
 </td>
 <td style="text-align:right;">
 0.028
@@ -1965,6 +2024,9 @@ OI
 0.000
 </td>
 <td style="text-align:right;">
+0.936
+</td>
+<td style="text-align:right;">
 0.028
 </td>
 <td style="text-align:right;">
@@ -1972,6 +2034,9 @@ OI
 </td>
 <td style="text-align:right;">
 0.001
+</td>
+<td style="text-align:right;">
+0.945
 </td>
 <td style="text-align:right;">
 0.024
@@ -1997,6 +2062,9 @@ NL
 -0.053
 </td>
 <td style="text-align:right;">
+0.756
+</td>
+<td style="text-align:right;">
 0.043
 </td>
 <td style="text-align:right;">
@@ -2004,6 +2072,9 @@ NL
 </td>
 <td style="text-align:right;">
 -0.099
+</td>
+<td style="text-align:right;">
+0.813
 </td>
 <td style="text-align:right;">
 0.090
@@ -2015,6 +2086,9 @@ NL
 -0.032
 </td>
 <td style="text-align:right;">
+0.932
+</td>
+<td style="text-align:right;">
 0.087
 </td>
 <td style="text-align:right;">
@@ -2022,6 +2096,9 @@ NL
 </td>
 <td style="text-align:right;">
 -0.047
+</td>
+<td style="text-align:right;">
+0.910
 </td>
 <td style="text-align:right;">
 0.093
@@ -2047,6 +2124,9 @@ NL
 -0.052
 </td>
 <td style="text-align:right;">
+0.029
+</td>
+<td style="text-align:right;">
 0.013
 </td>
 <td style="text-align:right;">
@@ -2054,6 +2134,9 @@ NL
 </td>
 <td style="text-align:right;">
 -0.105
+</td>
+<td style="text-align:right;">
+0.038
 </td>
 <td style="text-align:right;">
 0.029
@@ -2065,6 +2148,9 @@ NL
 -0.036
 </td>
 <td style="text-align:right;">
+0.729
+</td>
+<td style="text-align:right;">
 0.028
 </td>
 <td style="text-align:right;">
@@ -2072,6 +2158,9 @@ NL
 </td>
 <td style="text-align:right;">
 -0.054
+</td>
+<td style="text-align:right;">
+0.534
 </td>
 <td style="text-align:right;">
 0.030
@@ -2097,6 +2186,9 @@ NI
 0.005
 </td>
 <td style="text-align:right;">
+0.941
+</td>
+<td style="text-align:right;">
 0.028
 </td>
 <td style="text-align:right;">
@@ -2104,6 +2196,9 @@ NI
 </td>
 <td style="text-align:right;">
 -0.073
+</td>
+<td style="text-align:right;">
+0.747
 </td>
 <td style="text-align:right;">
 0.060
@@ -2115,6 +2210,9 @@ NI
 -0.053
 </td>
 <td style="text-align:right;">
+0.853
+</td>
+<td style="text-align:right;">
 0.058
 </td>
 <td style="text-align:right;">
@@ -2122,6 +2220,9 @@ NI
 </td>
 <td style="text-align:right;">
 -0.001
+</td>
+<td style="text-align:right;">
+0.933
 </td>
 <td style="text-align:right;">
 0.068
@@ -2147,6 +2248,9 @@ NI
 0.005
 </td>
 <td style="text-align:right;">
+0.910
+</td>
+<td style="text-align:right;">
 0.009
 </td>
 <td style="text-align:right;">
@@ -2154,6 +2258,9 @@ NI
 </td>
 <td style="text-align:right;">
 -0.071
+</td>
+<td style="text-align:right;">
+0.028
 </td>
 <td style="text-align:right;">
 0.018
@@ -2165,6 +2272,9 @@ NI
 -0.054
 </td>
 <td style="text-align:right;">
+0.161
+</td>
+<td style="text-align:right;">
 0.018
 </td>
 <td style="text-align:right;">
@@ -2172,6 +2282,9 @@ NI
 </td>
 <td style="text-align:right;">
 0.000
+</td>
+<td style="text-align:right;">
+0.952
 </td>
 <td style="text-align:right;">
 0.021
@@ -2197,6 +2310,9 @@ CL
 -0.045
 </td>
 <td style="text-align:right;">
+0.853
+</td>
+<td style="text-align:right;">
 0.054
 </td>
 <td style="text-align:right;">
@@ -2204,6 +2320,9 @@ CL
 </td>
 <td style="text-align:right;">
 0.170
+</td>
+<td style="text-align:right;">
+0.904
 </td>
 <td style="text-align:right;">
 0.252
@@ -2215,6 +2334,9 @@ CL
 -0.089
 </td>
 <td style="text-align:right;">
+0.895
+</td>
+<td style="text-align:right;">
 0.151
 </td>
 <td style="text-align:right;">
@@ -2222,6 +2344,9 @@ CL
 </td>
 <td style="text-align:right;">
 0.198
+</td>
+<td style="text-align:right;">
+0.893
 </td>
 <td style="text-align:right;">
 0.255
@@ -2247,6 +2372,9 @@ CL
 -0.045
 </td>
 <td style="text-align:right;">
+0.226
+</td>
+<td style="text-align:right;">
 0.017
 </td>
 <td style="text-align:right;">
@@ -2254,6 +2382,9 @@ CL
 </td>
 <td style="text-align:right;">
 0.149
+</td>
+<td style="text-align:right;">
+0.498
 </td>
 <td style="text-align:right;">
 0.078
@@ -2265,6 +2396,9 @@ CL
 -0.092
 </td>
 <td style="text-align:right;">
+0.456
+</td>
+<td style="text-align:right;">
 0.046
 </td>
 <td style="text-align:right;">
@@ -2272,6 +2406,9 @@ CL
 </td>
 <td style="text-align:right;">
 0.172
+</td>
+<td style="text-align:right;">
+0.399
 </td>
 <td style="text-align:right;">
 0.077
@@ -2297,6 +2434,9 @@ CI
 0.000
 </td>
 <td style="text-align:right;">
+0.906
+</td>
+<td style="text-align:right;">
 0.048
 </td>
 <td style="text-align:right;">
@@ -2304,6 +2444,9 @@ CI
 </td>
 <td style="text-align:right;">
 0.001
+</td>
+<td style="text-align:right;">
+0.890
 </td>
 <td style="text-align:right;">
 0.121
@@ -2315,6 +2458,9 @@ CI
 -0.002
 </td>
 <td style="text-align:right;">
+0.899
+</td>
+<td style="text-align:right;">
 0.122
 </td>
 <td style="text-align:right;">
@@ -2322,6 +2468,9 @@ CI
 </td>
 <td style="text-align:right;">
 -0.005
+</td>
+<td style="text-align:right;">
+0.911
 </td>
 <td style="text-align:right;">
 0.087
@@ -2347,6 +2496,9 @@ CI
 -0.001
 </td>
 <td style="text-align:right;">
+0.930
+</td>
+<td style="text-align:right;">
 0.018
 </td>
 <td style="text-align:right;">
@@ -2354,6 +2506,9 @@ CI
 </td>
 <td style="text-align:right;">
 0.004
+</td>
+<td style="text-align:right;">
+0.922
 </td>
 <td style="text-align:right;">
 0.046
@@ -2365,6 +2520,9 @@ CI
 -0.002
 </td>
 <td style="text-align:right;">
+0.923
+</td>
+<td style="text-align:right;">
 0.046
 </td>
 <td style="text-align:right;">
@@ -2372,6 +2530,9 @@ CI
 </td>
 <td style="text-align:right;">
 0.001
+</td>
+<td style="text-align:right;">
+0.935
 </td>
 <td style="text-align:right;">
 0.031

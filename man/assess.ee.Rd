@@ -7,18 +7,18 @@
 assess.ee(ee, digits = 2)
 }
 \arguments{
-\item{ee}{a matrix of numbers, columns correspond to components of the estimating equation, rows correspond to iid replicates}
+\item{ee}{a matrix of numbers, columns correspond to components of the
+estimating equation, rows correspond to iid replicates}
 
-\item{digits}{a non-negative integer, the number of digits displayed in return values (default is 2)
-
-#' @return a list with the following elements:
+\item{digits}{a non-negative integer, the number of digits displayed in
+return values (default is 2)}
+}
+\value{
+a list with the following elements:
 \itemize{
 \item{means: mean values of the estimating function}
 \item{t.stats: t-statistics to test the hypotheses of mean zero components}
-}}
 }
-\value{
-a named list with mean values and t-statistics to test the hypothesis of mean zero
 }
 \description{
 Assess estimating equation

@@ -1,9 +1,6 @@
 #' run one IPW simulation with a trivariate exposure, binary outcome, and a linear link function
 #'
-#' @param n a positive integer, the sample size
-#' @param vare a non-negative number, the measurement error variance for the first component of the exposure
-#' @param B a non-negative integer, the number of Monte-Carlo replicates used in corrected score methods
-#' @param seed a non-negative integer, the random number seed to be set before data are generated
+#' @inheritParams sim.gfmla
 #'
 #' @return a named numeric vector with the following entries
 #' \itemize{
@@ -11,8 +8,18 @@
 #' \item{vare}
 #' \item{B}
 #' \item{seed}
-#' \item{ghat: the estimated marginal structural model parameters from six methods (OL = oracle linear model, NL = naive linear model, CL = corrected linear model, OI = oracle IPW, NI = naive IPW, CI = corrected IPW)}
-#' \item{evar: the estimated variance of ghat for each of the six methods}
+#' \item{ghat.OL: oracle linear regression estinates}
+#' \item{ghat.NL: naive linear regression estinates}
+#' \item{ghat.CL: corrected linear regression estinates}
+#' \item{ghat.OG: oracle IPW estinates}
+#' \item{ghat.NG: naive IPW estinates}
+#' \item{ghat.CG: corrected IPW estinates}
+#' \item{stde.OL: oracle linear regression standard errors}
+#' \item{stde.NL: naive linear regression standard errors}
+#' \item{stde.CL: corrected linear regression standard errors}
+#' \item{stde.OG: oracle IPW standard errors}
+#' \item{stde.NG: naive IPW standard errors}
+#' \item{stde.CG: corrected IPW standard errors}
 #' }
 #'
 #' @export

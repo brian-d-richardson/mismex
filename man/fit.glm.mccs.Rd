@@ -7,10 +7,37 @@
 fit.glm.mccs(data, args, cov.e, B, mc.seed, start = NULL, return.var = TRUE)
 }
 \arguments{
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
+
+\item{args}{a list of arguments including
+\itemize{
+\item{\code{inv.link}: a function, inverse link function}
+\item{\code{d.inv.link}: a function, derivative of inv.link}
+\item{\code{formula}: a character string of outcome model formula}
+}}
+
+\item{cov.e}{a numeric matrix, measurement error covariance}
+
+\item{B}{a positive integer, the number of MC replicates}
+
+\item{mc.seed}{a positive integer, random number seed for MC simulation}
+
 \item{start}{an optional numeric vector, starting parameter values}
+
+\item{return.var}{an indicator for whether empirical sandwich variance
+estimator should be computed, default is TRUE}
 }
 \value{
-root of MCCS GLM estimating function
+a list of arguments including
+\itemize{
+\item{\code{est}: root of estimating function}
+\item{\code{var}: estimated covariance matrix of estimator (if requested)}
+}
 }
 \description{
 Fit MCCS GLM estimating equation

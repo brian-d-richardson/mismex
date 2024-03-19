@@ -1,18 +1,23 @@
 #' run one DR simulation
 #'
-#' @param n a positive integer, the sample size
-#' @param vare a non-negative number, the measurement error variance for the first component of the exposure
-#' @param B a non-negative integer, the number of Monte-Carlo replicates used in corrected score methods
-#' @param seed a non-negative integer, the random number seed to be set before data are generated
+#' @inheritParams make.mccs
 #'
-#' @return a named numeric vector with the following entries
+#' @param n a positive integer, the sample size
+#' @param seed a positive integer, random number seed set at start of simulation
+#'
+#' @return a data frame with the following columns
 #' \itemize{
 #' \item{n}
-#' \item{vare}
 #' \item{B}
+#' \item{vare}
 #' \item{seed}
-#' \item{ghat: the estimated marginal structural model parameters from six methods (OL = oracle linear model, NL = naive linear model, CL = corrected linear model, OI = oracle IPW, NI = naive IPW, CI = corrected IPW)}
-#' \item{evar: the estimated variance of ghat for each of the six methods}
+#' \item{ps: an indicator for whether the propensity score model is correctly
+#' (0) or incorrectly (1) specified}
+#' \item{out: an indicator for whether the outcome model is correctly
+#' (0) or incorrectly (1) specified}
+#' \item{type: the type of estimator (naive, oracle, or mccs)}
+#' \item{est: estimated slope of MSM}
+#' \item{se: estimated standard error}
 #' }
 #'
 #' @export
@@ -133,7 +138,7 @@ sim.dr <- function(n,
     dat <- as.data.frame(t(vapply(
       X = names(res.list),
       FUN = function(res) get.est.se.a(res = res, res.list = res.list),
-      FUN.VALUE = character(4)))) %>%
+      FUN.VALUE = character(4)))) |>
       mutate_at(c("est", "se"), as.numeric)
 
     return(dat)

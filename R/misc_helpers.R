@@ -1,15 +1,15 @@
 #' Assess estimating equation
 #'
-#' @param ee a matrix of numbers, columns correspond to components of the estimating equation, rows correspond to iid replicates
-#' @param digits a non-negative integer, the number of digits displayed in return values (default is 2)
+#' @param ee a matrix of numbers, columns correspond to components of the
+#' estimating equation, rows correspond to iid replicates
+#' @param digits a non-negative integer, the number of digits displayed in
+#' return values (default is 2)
 #'
-#'
-#'#' @return a list with the following elements:
+#' @return a list with the following elements:
 #' \itemize{
 #' \item{means: mean values of the estimating function}
 #' \item{t.stats: t-statistics to test the hypotheses of mean zero components}
 #' }
-#' @return a named list with mean values and t-statistics to test the hypothesis of mean zero
 #'
 #' @export
 assess.ee <- function(ee, digits = 2) {
@@ -25,9 +25,13 @@ assess.ee <- function(ee, digits = 2) {
               t.stats = round(t.stats, digits)))
 }
 
+
 # Format data for dose response curve plot
 #'
-#' @param a a matrix of numbers, columns correspond to components of the estimating equation, rows correspond to iid replicates
+#' @param a numeric vector of exposure values of interest
+#' @param res a data frame
+#' @param alpha a number between 0 and 1, the significance level, default is
+#' `0.05`
 #'
 #' @return a data frame
 #'

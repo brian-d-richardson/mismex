@@ -1,9 +1,8 @@
 #' Sandwich variance estimator
 #'
-#' @inheritParams get.psi.ipw
-#'
 #' @param ghat a numeric vector, estimated parameters
 #' @param get.psi estimating function
+#' @param n a positive integer, the sample size
 #'
 #' @return estimated covariance matrix of ghat
 #'

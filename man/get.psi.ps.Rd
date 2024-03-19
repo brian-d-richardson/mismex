@@ -2,27 +2,31 @@
 % Please edit documentation in R/estimating_functions.R
 \name{get.psi.ps}
 \alias{get.psi.ps}
-\title{propensity score estimating function}
+\title{Propensity score estimating function}
 \usage{
 get.psi.ps(data, ps.formula, coef.a.l, var.a.l, return.sums = T)
 }
 \arguments{
-\item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
 
-\item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}
+\item{ps.formula}{a character string of propensity score model formula}
+
+\item{coef.a.l}{a numeric matrix, coefficients in propensity score model}
+
+\item{var.a.l}{a numeric vector, variance of A|L in propensity score model}
 
 \item{return.sums}{a logical, indicator for whether a sum of estimating
 function values (as opposed to individual values) is to be returned
 (default is TRUE)}
-
-\item{A}{a matrix of numbers, possibly multivariate continuous exposure
-values with rows corresponding to observations}
-
-\item{L}{a vector of numbers, confounding variable}
 }
 \value{
 individual or summation estimating function values
 }
 \description{
-propensity score estimating function
+Propensity score estimating function
 }

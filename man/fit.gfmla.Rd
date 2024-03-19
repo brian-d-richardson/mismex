@@ -7,12 +7,33 @@
 fit.gfmla(data, args, a, start = NULL, return.var = TRUE)
 }
 \arguments{
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
+
+\item{args}{a list of arguments including
+\itemize{
+\item{\code{inv.link}: a function, inverse link function}
+\item{\code{d.inv.link}: a function, derivative of inv.link}
+\item{\code{formula}: a character string of outcome model formula}
+}}
+
 \item{a}{exposure value at which to estimate mean potential outcome}
 
 \item{start}{an optional numeric vector, starting parameter values}
+
+\item{return.var}{an indicator for whether empirical sandwich variance
+estimator should be computed, default is TRUE}
 }
 \value{
-root of GLM estimating function
+a list of arguments including
+\itemize{
+\item{\code{est}: root of estimating function}
+\item{\code{var}: estimated covariance matrix of estimator (if requested)}
+}
 }
 \description{
 Fit oracle G-formula estimating equation

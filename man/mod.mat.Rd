@@ -2,16 +2,23 @@
 % Please edit documentation in R/model_matrix.R
 \name{mod.mat}
 \alias{mod.mat}
-\title{create model matrix with complex numbers}
+\title{Create model matrix with complex numbers}
 \usage{
-mod.mat(trms, data, contrasts.arg = NULL)
+mod.mat(trms, data)
 }
 \arguments{
 \item{trms}{a terms object}
+
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
 }
 \value{
 model matrix
 }
 \description{
-create model matrix with complex numbers
+Create model matrix with complex numbers
 }

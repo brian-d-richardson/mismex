@@ -1,4 +1,4 @@
-#' create model matrix with complex numbers
+#' Create model matrix with complex numbers
 #'
 #' @inheritParams get.psi.glm
 #'
@@ -8,8 +8,8 @@
 #'
 #' @export
 
-mod.mat <- function(trms, data, contrasts.arg = NULL) {
-  
+mod.mat <- function(trms, data) {
+
   respname <- as.character(attr(trms, "variables")[[attr(trms,
                                                          "response") + 1]])
   termlabs <- attr(trms, "term.labels")

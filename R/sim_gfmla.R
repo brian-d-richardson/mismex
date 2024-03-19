@@ -1,12 +1,7 @@
 #' run one G-formula simulation
 #'
-#' @param n a positive integer, the sample size
-#' @param a a number, the value of a at which to estimate E{Y(a)}
-#' @param vare a non-negative number, the measurement error variance
-#' @param B a non-negative integer, the number of Monte-Carlo replicates used in
-#' corrected score methods
-#' @param seed a non-negative integer, the random number seed to be set before
-#' data are generated
+#' @inheritParams sim.dr
+#' @inheritParams fit.gfmla
 #'
 #' @return a named numeric vector with the following entries
 #' \itemize{
@@ -14,8 +9,19 @@
 #' \item{vare}
 #' \item{B}
 #' \item{seed}
-#' \item{ghat: the estimated marginal structural model parameters from six methods (OL = oracle linear model, NL = naive linear model, CL = corrected linear model, OI = oracle IPW, NI = naive IPW, CI = corrected IPW)}
-#' \item{evar: the estimated variance of ghat for each of the six methods}
+#' \item{a1, ..., ak}
+#' \item{est.OL: oracle logistic regression estinates}
+#' \item{est.NL: naive logistic regression estinates}
+#' \item{est.CL: corrected logistic regression estinates}
+#' \item{est.OG: oracle g-formula estinates}
+#' \item{est.NG: naive g-formula estinates}
+#' \item{est.CG: corrected g-formula estinates}
+#' \item{ste.OL: oracle linear regression standard errors}
+#' \item{ste.NL: naive linear regression standard errors}
+#' \item{ste.CL: corrected linear regression standard errors}
+#' \item{ste.OG: oracle g-formula standard errors}
+#' \item{ste.NG: naive g-formula standard errors}
+#' \item{ste.CG: corrected g-formula standard errors}
 #' }
 #'
 #' @export

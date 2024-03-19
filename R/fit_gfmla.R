@@ -1,11 +1,14 @@
 #' Fit oracle G-formula estimating equation
 #'
-#' @inheritParams get.psi.glm
+#' @inheritParams fit.glm
 #'
-#' @param start an optional numeric vector, starting parameter values
 #' @param a exposure value at which to estimate mean potential outcome
 #'
-#' @return root of GLM estimating function
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.gfmla <- function(data, args, a,
@@ -66,10 +69,14 @@ fit.gfmla <- function(data, args, a,
 
 #' Fit MCCS G-formula estimating equation
 #'
-#' @param start an optional numeric vector, starting parameter values
-#' @param a exposure value at which to estimate mean potential outcome
+#' @inheritParams fit.gfmla
+#' @inheritParams make.mccs
 #'
-#' @return root of GLM estimating function and estimated E{Y(a)}
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.gfmla.mccs <- function(data, args, a,

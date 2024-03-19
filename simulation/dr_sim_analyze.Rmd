@@ -74,6 +74,9 @@ sim.out.list <- lapply(
 # combine simulation results into 1 data frame
 sim.out <- bind_rows(sim.out.list) %>% 
   mutate(g.true = g,
+         ci.lower = est - qnorm(0.975) * se,
+         ci.upper = est + qnorm(0.975) * se,
+         ci.cov = g.true >= ci.lower & g.true <= ci.upper,
          method = factor(method,
                          levels = c("gfmla", "ipw", "dr"),
                          labels = c("G-Formula", "IPW", "Doubly Robust")),
@@ -172,7 +175,7 @@ make.plot()
 
 ### Table of Simulation Results
 
-The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and mean squared error (MSE) of the nine estimators under the four model specification scenarios.
+The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), mean squared error (MSE), and empirical coverage probability of the 95% CIs for the nine estimators under the four model specification scenarios.
 
 ```{r}
 
@@ -183,12 +186,13 @@ tbl <- sim.out %>%
   summarise(bias = mean(est - g, na.rm = T),
             emp.se = sd(est, na.rm = T),
             est.se = mean(se, na.rm = T),
-            mse = mean((est - g.true)^2))
+            mse = mean((est - g.true)^2),
+            ci.cov = mean(ci.cov, na.rm = T))
 
 tbl %>% 
   kable(digits = 3,
         col.names = c("Method", "Type", "PS Model", "Outcome Model",
-                      "Bias", "ESE", "ASE", "MSE"),
+                      "Bias", "ESE", "ASE", "MSE", "CI Coverage"),
         caption = "Estimated MSM Slope") %>%
   kable_styling("striped")
 

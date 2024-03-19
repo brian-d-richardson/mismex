@@ -19,10 +19,50 @@ fit.ipw.mccs(
 )
 }
 \arguments{
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
+
+\item{args}{a list of arguments including
+\itemize{
+\item{\code{inv.link}: a function, inverse link function}
+\item{\code{d.inv.link}: a function, derivative of inv.link}
+\item{\code{formula}: a character string of outcome model formula}
+\item{\code{ps.formula}: a character string of propensity model formula}
+}}
+
+\item{cov.e}{a numeric matrix, measurement error covariance}
+
+\item{B}{a positive integer, the number of MC replicates}
+
+\item{mc.seed}{a positive integer, random number seed for MC simulation}
+
 \item{start}{an optional numeric vector, starting parameter values}
+
+\item{return.var}{an indicator for whether empirical sandwich variance
+estimator should be computed, default is TRUE}
+
+\item{mean.a}{an optional numeric vector, the marginal mean of the exposure
+A, computed if not specified}
+
+\item{cov.a}{an optional numeric matrix, the marginal covariance of the
+exposure A, computed if not specified}
+
+\item{coef.a.l}{an optional numeric matrix, coefficients in propensity score
+model, computed if not specified}
+
+\item{var.a.l}{an optional numeric vector, variance of A|L in propensity
+score model, computed if not specified}
 }
 \value{
-root of MCCS IPW estimating function
+a list of arguments including
+\itemize{
+\item{\code{est}: root of estimating function}
+\item{\code{var}: estimated covariance matrix of estimator (if requested)}
+}
 }
 \description{
 Fit MCCS IPW estimating equation

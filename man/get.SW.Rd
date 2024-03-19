@@ -2,22 +2,31 @@
 % Please edit documentation in R/estimating_functions.R
 \name{get.SW}
 \alias{get.SW}
-\title{compute standardized IP weights for multivariate normal exposure}
+\title{Compute standardized IP weights for multivariate normal exposure}
 \usage{
 get.SW(data, ps.formula, coef.a.l, var.a.l, mean.a, cov.a)
 }
 \arguments{
-\item{coef.a.l}{a vector of numbers, coefficients for the linear model A~L}
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
 
-\item{var.a.l}{a vector of numbers, values of the covariance matrix of A|L}
+\item{ps.formula}{a character string of propensity score model formula}
 
-\item{mean.a}{a vector of numbers, the marginal mean of the exposure A}
+\item{coef.a.l}{a numeric matrix, coefficients in propensity score model}
 
-\item{cov.a}{a matrix of numbers, the marginal covariance of the exposure A}
+\item{var.a.l}{a numeric vector, variance of A|L in propensity score model}
+
+\item{mean.a}{a numeric vector, the marginal mean of the exposure A}
+
+\item{cov.a}{a numeric matrix, the marginal covariance of the exposure A}
 }
 \value{
 a vector of standardized IP weights
 }
 \description{
-compute standardized IP weights for multivariate normal exposure
+Compute standardized IP weights for multivariate normal exposure
 }

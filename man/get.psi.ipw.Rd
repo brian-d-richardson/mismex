@@ -7,17 +7,30 @@
 get.psi.ipw(data, g, args, mean.a, cov.a, return.sums = T)
 }
 \arguments{
-\item{g}{a numeric vector, coefficients in the MSM Y~A}
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
+
+\item{g}{a numeric vector, coefficients in outcome model E(Y|A,L)}
+
+\item{args}{a list of arguments including
+\itemize{
+\item{\code{inv.link}: a function, inverse link function}
+\item{\code{d.inv.link}: a function, derivative of inv.link}
+\item{\code{formula}: a character string of outcome model formula}
+\item{\code{ps.formula}: a character string of propensity model formula}
+}}
+
+\item{mean.a}{a numeric vector, the marginal mean of the exposure A}
+
+\item{cov.a}{a numeric matrix, the marginal covariance of the exposure A}
 
 \item{return.sums}{a logical, indicator for whether a sum of estimating
 function values (as opposed to individual values) is to be returned
 (default is TRUE)}
-
-\item{Y}{a numeric vector, outcome variable}
-
-\item{inv.link}{a function, link function}
-
-\item{d.inv.link}{a function, derivative of inv.link}
 }
 \value{
 individual or summation estimating function values

@@ -7,7 +7,22 @@
 make.mccs(get.psi, data, args, cov.e, B, mc.seed)
 }
 \arguments{
-\item{psi}{an estimating function}
+\item{get.psi}{an estimating function}
+
+\item{data}{a data frame including coluns
+\itemize{
+\item{outcome Y}
+\item{exposures A1, ..., Am}
+\item{covariates L1, ..., Lp}
+}}
+
+\item{args}{a list of additional arguments}
+
+\item{cov.e}{a numeric matrix, measurement error covariance}
+
+\item{B}{a positive integer, the number of MC replicates}
+
+\item{mc.seed}{a positive integer, random number seed for MC simulation}
 }
 \value{
 an MCCS estimating function

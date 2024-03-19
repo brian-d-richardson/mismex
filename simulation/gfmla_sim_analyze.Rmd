@@ -98,7 +98,10 @@ sim.out.long <- sim.out %>%
   mutate(id = row_number()) %>% 
   pivot_wider(names_from = name,
               values_from = val,
-              id_cols = c(clust, n, B, vare, method, aa, a, EYa.true, id))
+              id_cols = c(clust, n, B, vare, method, aa, a, EYa.true, id)) %>% 
+  mutate(ci.lower = est - qnorm(0.975) * ste,
+         ci.upper = est + qnorm(0.975) * ste,
+         ci.cov = EYa.true >= ci.lower & EYa.true <= ci.upper)
 
 ```
 
@@ -258,7 +261,7 @@ plot.by.a(a. = 3, method. = c("OG", "NG", "CG"), n. = 800, vare. = 0.25)
 
 ### Primary Table
 
-Below is a table of the setting considered in the g-formula simulations in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$. It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and mean squared error (MSE).
+Below is a table of the setting considered in the g-formula simulations in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$. It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), mean squared error (MSE), and empirical coverage probability of the 95% CI.
 
 ```{r}
 
@@ -270,11 +273,12 @@ tbl.a3 <- sim.out.long %>%
   summarise(bias = mean(est - EYa.true, na.rm = T),
             emp.se = sd(est, na.rm = T),
             est.se = mean(ste, na.rm = T),
-            mse = mean((est - EYa.true)^2))
+            mse = mean((est - EYa.true)^2),
+            ci.cov = mean(ci.cov, na.rm = T))
 
 tbl.a3 %>% 
   kable(digits = 3,
-        col.names = c("Method", "Bias", "ESE", "ASE", "MSE"),
+        col.names = c("Method", "Bias", "ESE", "ASE", "MSE", "CI Coverage"),
         caption = "Estimated E{Y(a)} for a = 3, n = 800, vare = 0.25") %>%
   kable_styling("striped")
 
@@ -294,11 +298,12 @@ tbl.a3.n8k <- sim.out.long %>%
   summarise(bias = mean(est - EYa.true, na.rm = T),
             emp.se = sd(est, na.rm = T),
             est.se = mean(ste, na.rm = T),
-            mse = mean((est - EYa.true)^2))
+            mse = mean((est - EYa.true)^2),
+            ci.cov = mean(ci.cov, na.rm = T))
 
 tbl.a3.n8k %>% 
   kable(digits = 3,
-        col.names = c("Method", "Bias", "ESE", "ASE", "MSE"),
+        col.names = c("Method", "Bias", "ESE", "ASE", "MSE", "CI Coverage"),
         caption = "Estimated E{Y(a)} for a = 3, n = 8000, vare = 0.25") %>%
   kable_styling("striped")
 
@@ -314,8 +319,9 @@ tbl <- sim.out.long %>%
   group_by(a, method, n, B, vare) %>% 
   summarise(bias = mean(est - EYa.true, na.rm = T),
             emp.se = sd(est, na.rm = T),
-            est.se = mean(ste, na.rm = T)) %>% 
-  gather(key, value, bias:est.se) %>% 
+            est.se = mean(ste, na.rm = T),
+            ci.cov = mean(ci.cov, na.rm = T)) %>% 
+  gather(key, value, bias:ci.cov) %>% 
   unite(Group, a, key) %>% 
   spread(Group, value)
 
@@ -323,11 +329,11 @@ setNames(tbl, sub(".+_", "", names(tbl))) %>%
   kable(digits = 3) %>%
   kable_styling("striped") %>%
   add_header_above(c(" " = 4,
-                     "E{Y(0)}" = 3,
-                     "E{Y(1)}" = 3,
-                     "E{Y(2)}" = 3,
-                     "E{Y(3)}" = 3,
-                     "E{Y(4)}" = 3))
+                     "E{Y(0)}" = 4,
+                     "E{Y(1)}" = 4,
+                     "E{Y(2)}" = 4,
+                     "E{Y(3)}" = 4,
+                     "E{Y(4)}" = 4))
   
 ```
 

@@ -1,12 +1,18 @@
 #' Oracle GLM estimating function
 #'
-#' @param Y a numeric vector, outcome variable
-#' @param A a matrix of numbers, possibly multivariate continuous exposure
-#'    values with rows corresponding to observations
-#' @param L a vector of numbers, confounding variable
-#' @param g a numeric vector, coefficients in GLM Y~A+L
-#' @param inv.link a function, inverse link function
-#' @param d.inv.link a function, derivative of inv.link
+#' @param data a data frame including coluns
+#' \itemize{
+#' \item{outcome Y}
+#' \item{exposures A1, ..., Am}
+#' \item{covariates L1, ..., Lp}
+#' }
+#' @param g a numeric vector, coefficients in outcome model E(Y|A,L)
+#' @param args a list of arguments including
+#' \itemize{
+#' \item{`inv.link`: a function, inverse link function}
+#' \item{`d.inv.link`: a function, derivative of inv.link}
+#' \item{`formula`: a character string of outcome model formula}
+#' }
 #' @param return.sums a logical, indicator for whether a sum of estimating
 #'    function values (as opposed to individual values) is to be returned
 #'    (default is TRUE)
@@ -43,16 +49,13 @@ get.psi.glm <- function(data, g,
   }
 }
 
-#' propensity score estimating function
+#' Propensity score estimating function
 #'
-#' @param A a matrix of numbers, possibly multivariate continuous exposure
-#'    values with rows corresponding to observations
-#' @param L a vector of numbers, confounding variable
-#' @param coef.a.l a vector of numbers, coefficients for the linear model A~L
-#' @param var.a.l a vector of numbers, values of the covariance matrix of A|L
-#' @param return.sums a logical, indicator for whether a sum of estimating
-#'    function values (as opposed to individual values) is to be returned
-#'    (default is TRUE)
+#' @inheritParams get.psi.glm
+#'
+#' @param ps.formula a character string of propensity score model formula
+#' @param coef.a.l a numeric matrix, coefficients in propensity score model
+#' @param var.a.l a numeric vector, variance of A|L in propensity score model
 #'
 #' @return individual or summation estimating function values
 #'
@@ -85,11 +88,11 @@ get.psi.ps <- function(data, ps.formula, coef.a.l, var.a.l, return.sums = T) {
 }
 
 
-#' compute standardized IP weights for multivariate normal exposure
+#' Compute standardized IP weights for multivariate normal exposure
 #'
 #' @inheritParams get.psi.ps
-#' @param mean.a a vector of numbers, the marginal mean of the exposure A
-#' @param cov.a a matrix of numbers, the marginal covariance of the exposure A
+#' @param mean.a a numeric vector, the marginal mean of the exposure A
+#' @param cov.a a numeric matrix, the marginal covariance of the exposure A
 #'
 #' @return a vector of standardized IP weights
 #'
@@ -129,12 +132,16 @@ get.SW <- function(data,
 
 #' Oracle IPW estimating function
 #'
-#' @inheritParams get.psi.ps
+#' @inheritParams get.SW
+#' @inheritParams get.psi.glm
 #'
-#' @param Y a numeric vector, outcome variable
-#' @param g a numeric vector, coefficients in the MSM Y~A
-#' @param inv.link a function, link function
-#' @param d.inv.link a function, derivative of inv.link
+#' @param args a list of arguments including
+#' \itemize{
+#' \item{`inv.link`: a function, inverse link function}
+#' \item{`d.inv.link`: a function, derivative of inv.link}
+#' \item{`formula`: a character string of outcome model formula}
+#' \item{`ps.formula`: a character string of propensity model formula}
+#' }
 #'
 #' @return individual or summation estimating function values
 #'
@@ -179,7 +186,13 @@ get.psi.ipw <- function(data, g, args,
 
 #' create MCCS estimating function
 #'
-#' @param psi an estimating function
+#' @inheritParams get.psi.glm
+#'
+#' @param get.psi an estimating function
+#' @param args a list of additional arguments
+#' @param cov.e a numeric matrix, measurement error covariance
+#' @param B a positive integer, the number of MC replicates
+#' @param mc.seed a positive integer, random number seed for MC simulation
 #'
 #' @return an MCCS estimating function
 #'

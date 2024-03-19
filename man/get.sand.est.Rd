@@ -10,6 +10,8 @@ get.sand.est(ghat, get.psi, n)
 \item{ghat}{a numeric vector, estimated parameters}
 
 \item{get.psi}{estimating function}
+
+\item{n}{a positive integer, the sample size}
 }
 \value{
 estimated covariance matrix of ghat

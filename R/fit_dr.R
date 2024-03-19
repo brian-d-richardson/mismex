@@ -2,11 +2,13 @@
 #'
 #' @inheritParams get.psi.glm
 #' @inheritParams get.psi.ipw
+#' @inheritParams fit.glm
 #'
-#' @param start an optional numeric vector, starting parameter values
-#' @param a exposure value at which to estimate mean potential outcome
-#'
-#' @return root of GLM estimating function
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.dr <- function(data, args, a,
@@ -94,13 +96,14 @@ fit.dr <- function(data, args, a,
 
 #' Fit MCCS doubly robust estimating equation
 #'
-#' @inheritParams get.psi.glm
-#' @inheritParams get.psi.ipw
+#' @inheritParams fit.dr
+#' @inheritParams make.mccs
 #'
-#' @param start an optional numeric vector, starting parameter values
-#' @param a exposure value at which to estimate mean potential outcome
-#'
-#' @return root of GLM estimating function
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.dr.mccs <- function(data, args, a,

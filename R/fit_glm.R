@@ -3,8 +3,14 @@
 #' @inheritParams get.psi.glm
 #'
 #' @param start an optional numeric vector, starting parameter values
+#' @param return.var an indicator for whether empirical sandwich variance
+#' estimator should be computed, default is TRUE
 #'
-#' @return root of GLM estimating function
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.glm <- function(data, args,
@@ -53,9 +59,14 @@ fit.glm <- function(data, args,
 
 #' Fit MCCS GLM estimating equation
 #'
-#' @param start an optional numeric vector, starting parameter values
+#' @inheritParams fit.glm
+#' @inheritParams make.mccs
 #'
-#' @return root of MCCS GLM estimating function
+#' @return a list of arguments including
+#' \itemize{
+#' \item{`est`: root of estimating function}
+#' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' }
 #'
 #' @export
 fit.glm.mccs <- function(data, args,
