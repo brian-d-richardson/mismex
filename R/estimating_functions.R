@@ -1,6 +1,6 @@
 #' Oracle GLM estimating function
 #'
-#' @param data a data frame including coluns
+#' @param data a data frame including columns
 #' \itemize{
 #' \item{outcome Y}
 #' \item{exposures A1, ..., Am}
@@ -146,9 +146,7 @@ get.SW <- function(data,
 #' @return individual or summation estimating function values
 #'
 #' @export
-get.psi.ipw <- function(data, g, args,
-                        mean.a, cov.a,
-                        return.sums = T) {
+get.psi.ipw <- function(data, g, args, return.sums = T) {
 
   ## unpack arguments
   list2env(args, envir = environment())

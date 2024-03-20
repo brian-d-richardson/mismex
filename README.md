@@ -10,18 +10,20 @@ Installation of `mismex` from GitHub requires the
 package and can be done with the following code:
 
 ``` r
-# install the package
+## install the package
 devtools::install_github(repo = "brian-d-richardson/mismex", 
                          ref = "main")
 ```
 
 ``` r
-# load the package
+## load the package
 library(mismex)
 
-# load additional packages
+## load additional packages
 library(MASS)
 library(dplyr)
+library(tidyverse)
+library(ggplot2)
 ```
 
 The `mismex` package contains functions to estimate causal effects in
@@ -32,19 +34,30 @@ which is currently in progress.
 
 ## Example
 
-An example of the 3 proposed estimators (g-formula, IPW, and doubly
+An example of the three proposed estimators (g-formula, IPW, and doubly
 robust) used on a simulated data set is provided below.
 
 ### Data Generation
 
 Data are generated below according to the data generation process
-described in the third simulaton study.
+described in the third simulation study:
+
+- sample size $n=2000$,
+- two independent confounders
+  $L_1 \sim \textrm{Bernoulli}(0.5), L_2 \sim N(1, 0.5)$
+- univariate exposure $A$, where
+  $A|\pmb{L} \sim N(2 + 0.9L_1 - 0.6L2, 1.1)$
+- continuous outcome $Y$, with
+  $Y|\pmb{L},A \sim N(1.5 + 0.7A + 0.9L_1 - 0.7L_2 + - 0.6AL_1 + 0.4AL_2, 0.16)$
+- resulting MSM $\textrm{E}\{Y(a)\} = \gamma_0 + \gamma_1a$, where
+  $\pmb{\gamma} = (\gamma_0, \gamma_1) = (1.35, 0.75)$
+- mismeasured exposure $A^* = A + \epsilon$, where
+  $\epsilon \sim N(0, 0.16)$
 
 ``` r
 ## define parameters
  
 n = 2000                                  # sample size
-B = 30                                    # number of MC replicates
 seed = 1                                  # random number seed
 mc.seed <- 123                            # MCCS seed
 cov.e <- 0.16                             # var(epsilon)
@@ -67,20 +80,89 @@ a <- seq(min(A), max(A), length = 4)                     # grid of exposures
 EY <- inv.link(model.matrix(as.formula(formula)) %*% g)  # mean of outcome
 Y <- rnorm(n, EY, sqrt(0.16))                            # outcome
 Astar <- A + rnorm(n, 0, sqrt(cov.e))                    # mismeasured A
-dat0 <- data.frame(Y, A, L1, L2)                         # oracle data
 datstar <- data.frame(Y, A = Astar, L1, L2)              # mismeasured data
-args <- list(formula = formula,                          # arguments for fitting
-             ps.formula = ps.formula,
-             inv.link = inv.link,
-             d.inv.link = d.inv.link)
+
+head(datstar, 5)
 ```
+
+    ##           Y          A L1        L2
+    ## 1 2.2186524  1.1634983  0 1.8025415
+    ## 2 2.5664615  1.7145178  0 1.7862545
+    ## 3 2.1174644  4.3731142  1 0.3842672
+    ## 4 2.8111597  1.7921312  1 1.1490097
+    ## 5 0.9702103 -0.4505236  0 1.0490701
 
 ### G-Formula Estimation
 
 The dose response curve at chosen values of the exposure $a$ are
 estimated here using the MCCS g-formula method.
 
+Before fitting the model, we determine an appropriate number of
+Monte-Carlo replicates $B$ in order for the G-formula MCCS function to
+approximate the CS function. We can do this by evaluating the MCCS
+function for a sequence of $B$ values, and at a particular parameter
+value, say the naive g-formula estimator (ignoring measurement error).
+
 ``` r
+## g-formula arguments
+gfmla.args <- list(formula = formula,   
+                   inv.link = inv.link,
+                   d.inv.link = d.inv.link)
+
+## naive estimator
+gfmla.naive <- fit.glm(data = datstar,
+                       args = gfmla.args,
+                       return.var = F)$est
+
+## grid of possible B values
+B.grid <- seq(1, 50, by = 2)
+
+## store psi and computation time B
+B.search <- vapply(
+  X = 1:length(B.grid),
+  FUN.VALUE = numeric(8),
+  FUN = function(ii) {
+
+    st <- Sys.time()
+    get.psi.glm.mccs <- make.mccs(
+      get.psi = get.psi.glm, data = datstar, args = gfmla.args,
+      cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
+    psi <- get.psi.glm.mccs(x = gfmla.naive)
+    et <- Sys.time()
+
+    return(c(B = B.grid[ii],
+             Time = et - st,
+             psi = psi))
+  }) %>%
+  t() %>%
+  as.data.frame() %>%
+  `colnames<-`(c("B", "Time", paste0("psi", 0:5))) %>% 
+  pivot_longer(cols = !B)
+
+## plot results
+ggplot(data = B.search,
+       aes(x = B,
+           y = value)) +
+  geom_line() +
+  facet_wrap(~ name,
+             scales = "free") +
+  labs(y = "") +
+  ggtitle("Score Values and Computation Time by Number of MC Replicates B")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+Based on these plots, the G-formula MCCS seems to stabilize around
+$B=30$. Using this value, we proceed with estimating the G-formula
+parameters. These include the parameters
+$\pmb{\beta} = (\beta_0, \dots, \beta_5)$ in the outcome model
+$Y|\pmb{L},A$, and the dose response curve $\textrm{E}\{Y(a)\}$
+evaluated at four points (-2.5, 0.3, 3, 5.8) in the support of $A$.
+
+``` r
+## number of MC replicates
+B <- 30
+
 ## G-formula
 gfmla.res <- fit.gfmla.mccs(
   data = datstar,
@@ -89,9 +171,7 @@ gfmla.res <- fit.gfmla.mccs(
   B = B,
   mc.seed = mc.seed,
   return.var = TRUE,
-  args = list(formula = formula,   
-              inv.link = inv.link,
-              d.inv.link = d.inv.link))
+  args = gfmla.args)
 
 cbind(est = round(gfmla.res$est, 2),
       stde = round(sqrt(diag(gfmla.res$var)), 2))
@@ -111,21 +191,28 @@ cbind(est = round(gfmla.res$est, 2),
 
 ### IPW Estimation
 
-Parameters in the marginal structural model are estimated here using the
-MCCS IPW method.
+Parameters $\pmb{\gamma} = (\gamma_0, \gamma_1)$ in the marginal
+structural model, as well as coefficients and variance in the propensity
+score model $A|\pmb{L}$, are estimated here using the MCCS IPW method.
+We use the same number of MC replicates $B=30$ as for IPW, but a similar
+strategy as with g-formula could be used to tune this to an appropriate
+number.
 
 ``` r
-## IPW
+## IPW arguments
+ipw.args <- list(formula = ipw.formula,   
+                 ps.formula = ps.formula,
+                 inv.link = inv.link,
+                 d.inv.link = d.inv.link)
+
+## IPW estimation
 ipw.res <- fit.ipw.mccs(
   data = datstar,
   cov.e = cov.e,
   B = B,
   mc.seed = mc.seed,
   return.var = TRUE,
-  args = list(formula = ipw.formula,   
-              ps.formula = ps.formula,
-              inv.link = inv.link,
-              d.inv.link = d.inv.link))
+  args = ipw.args)
 
 cbind(est = round(ipw.res$est, 2),
       stde = round(sqrt(diag(ipw.res$var)), 2))
@@ -141,10 +228,17 @@ cbind(est = round(ipw.res$est, 2),
 
 ### Double Robust Estimation
 
-The dose response curve is again estimated here using the double robust
-method.
+Finally, we estimate outcome model parameters, propensity model
+parameters, and the dose response curve using the doubly robust MCCS
+method, again with $B=30$ replicates.
 
 ``` r
+## arguments for double robust estimation
+dr.args <- list(formula = formula, 
+                ps.formula = ps.formula,
+                inv.link = inv.link,
+                d.inv.link = d.inv.link)
+
 ## Double Robust
 dr.res <- fit.dr.mccs(
   data = datstar,
@@ -153,10 +247,7 @@ dr.res <- fit.dr.mccs(
   B = B,
   mc.seed = mc.seed,
   return.var = TRUE,
-  args = list(formula = formula,   
-              ps.formula = ps.formula,
-              inv.link = inv.link,
-              d.inv.link = d.inv.link))
+  args = dr.args)
 
 cbind(est = round(dr.res$est, 2),
       stde = round(sqrt(diag(dr.res$var)), 2))
