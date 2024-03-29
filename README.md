@@ -219,7 +219,7 @@ cbind(est = round(ipw.res$est, 2),
 ```
 
     ##                est stde
-    ## g.0           1.78 0.19
+    ## g.0           1.77 0.19
     ## g.1           0.55 0.09
     ## coef.a.l.1    2.06 0.05
     ## coef.a.l.2    0.88 0.05
@@ -268,3 +268,41 @@ cbind(est = round(dr.res$est, 2),
     ## EYa.2         1.56 0.02
     ## EYa.3         3.64 0.03
     ## EYa.4         5.72 0.07
+
+### Using Known Weights
+
+If the propensity weights are known, or if they are estimated
+externally, then they can be supplied using the `ps.wts` argument. In
+this case, the sandwich variance estimator treats weights as known.
+
+``` r
+## Known PS weights
+ps.wts <- dnorm(A, mean(A), sd(A)) /
+  dnorm(A, 2 + 0.9*L1 - 0.6*L2, sqrt(1.1))
+  
+## Double Robust (known weights)
+dr.res.known.wts <- fit.dr.mccs(
+  data = datstar,
+  a = a,
+  cov.e = cov.e,
+  B = B,
+  mc.seed = mc.seed,
+  return.var = TRUE,
+  args = dr.args,
+  ps.wts = ps.wts)
+
+cbind(est = round(dr.res.known.wts$est, 2),
+      stde = round(sqrt(diag(dr.res.known.wts$var)), 2))
+```
+
+    ##         est stde
+    ## g.0    1.53 0.04
+    ## g.1    0.69 0.02
+    ## g.2    0.87 0.05
+    ## g.3   -0.58 0.03
+    ## g.4   -0.70 0.02
+    ## g.5    0.39 0.01
+    ## EYa.1 -0.47 0.07
+    ## EYa.2  1.58 0.02
+    ## EYa.3  3.62 0.03
+    ## EYa.4  5.66 0.07
