@@ -166,6 +166,8 @@ get.psi.ipw <- function(data, g, args, ps.wts = NULL, return.sums = T) {
   if (is.null(ps.wts)) {
 
     # extract PS model params
+    mean.a <- colMeans(as.matrix(A))
+    if (is.vector(A)) { cov.a <- var(A) } else { cov.a <- cov(A) }
     coef.a.l <- matrix(g[len.msm + 1:(len.A*len.ps)],
                        ncol = len.ps, byrow = F)
     var.a.l <- exp(tail(g, len.A))

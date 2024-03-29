@@ -40,12 +40,6 @@ fit.ipw <- function(data, args,
   len.ps <- ncol(model.matrix(                               # dim of ps params
     terms(as.formula(ps.formula)), data = data))
 
-  # compute marginal mean and covariance of A if not supplied
-  if (is.null(ps.wts)) {
-    if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
-    if (is.null(cov.a)) { if (is.vector(A)) cov.a <- var(A) else cov.a <- cov(A) }
-  }
-
   # set starting value if not supplied
   if (is.null(start)) { start <- rep(0, len.msm) }
 
