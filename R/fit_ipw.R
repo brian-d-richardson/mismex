@@ -21,6 +21,7 @@
 #'
 #' @export
 fit.ipw <- function(data, args,
+                    ps.wts = NULL,
                     start = NULL, return.var = TRUE,
                     mean.a = NULL, cov.a = NULL,
                     coef.a.l = NULL, var.a.l = NULL) {
@@ -40,17 +41,22 @@ fit.ipw <- function(data, args,
     terms(as.formula(ps.formula)), data = data))
 
   # compute marginal mean and covariance of A if not supplied
-  if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
-  if (is.null(cov.a)) { if (is.vector(A)) cov.a <- var(A) else cov.a <- cov(A) }
+  if (is.null(ps.wts)) {
+    if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
+    if (is.null(cov.a)) { if (is.vector(A)) cov.a <- var(A) else cov.a <- cov(A) }
+  }
 
   # set starting value if not supplied
   if (is.null(start)) { start <- rep(0, len.msm) }
 
-  # fit propensity score model
-  if (is.null(coef.a.l) | is.null(var.a.l)) {
+  # fit propensity score model if not supplied
+  if (is.null(ps.wts)) {
     model.a.l <- lm(as.formula(paste0("A", ps.formula)), data = data)
     coef.a.l <- t(coef(model.a.l))
     var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var)
+  } else {
+    coef.a.l <- matrix(NA, nrow = len.A, ncol = len.ps)
+    var.a.l <- rep(NA, len.A)
   }
 
   # solve IPW equation
@@ -59,40 +65,63 @@ fit.ipw <- function(data, args,
       f = function(x) {
         get.psi.ipw(
           data = data, g = c(x, c(coef.a.l), log(var.a.l)),
-          args = args, mean.a = mean.a, cov.a = cov.a) },
+          args = args, ps.wts = ps.wts) },
       start = start)$root,
     warning = function(w) {message(w); rep(NA, len.msm)},
     error = function(e) {message(e); rep(NA, len.msm)})
 
   # combine MSM and PS model parameters
-  est <- c(root, coef.a.l, log(var.a.l))
-  names(est) <- c(
-    paste0("g.", 0:(len.msm - 1)),
-    paste0("coef.a.l.", 1:(len.A*len.ps)),
-    paste0("log.var.a.l", 1:len.A))
+  if (is.null(ps.wts)) {
+    est <- c(root, coef.a.l, log(var.a.l))
+    names(est) <- c(
+      paste0("g.", 0:(len.msm - 1)),
+      paste0("coef.a.l.", 1:(len.A*len.ps)),
+      paste0("log.var.a.l", 1:len.A))
+  } else {
+    est <- root
+    names(est) <- paste0("g.", 0:(len.msm - 1))
+  }
 
-  # sandwich variance estimate if requested
-  evar <- matrix(NA, len.msm + len.ps, len.msm + len.ps)
-  if (return.var) {
-    evar <- tryCatch(
-      expr = get.sand.est(
-        ghat = est,
-        n = n,
-        get.psi = function(x) {
-          coef.a.l <- matrix(x[len.msm + 1:(len.A*len.ps)],
-                             ncol = len.ps, byrow = F)
-          var.a.l <- exp(tail(x, len.A))
-          cbind(
+  # sandwich variance estimates including PS model if requested
+  if (is.null(ps.wts)) {
+    evar <- matrix(NA, len.msm + len.ps, len.msm + len.ps)
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = est,
+          n = n,
+          get.psi = function(x) {
+            coef.a.l <- matrix(x[len.msm + 1:(len.A*len.ps)],
+                               ncol = len.ps, byrow = F)
+            var.a.l <- exp(tail(x, len.A))
+            cbind(
+              get.psi.ipw(
+                data = data, g = x, args = args,
+                return.sums = F),
+              get.psi.ps(
+                data = data, ps.formula = ps.formula,
+                coef.a.l = coef.a.l, var.a.l = var.a.l,
+                return.sums = F)) }),
+        warning = function(w) {message(w); evar},
+        error = function(e) {message(e); evar})
+    }
+  } else {
+
+    # sandwich variance estimates excluding PS model if requested
+    evar <- matrix(NA, len.msm, len.msm)
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = est,
+          n = n,
+          get.psi = function(x) {
             get.psi.ipw(
-              data = data, g = x, args = args,
-              mean.a = mean.a, cov.a = cov.a,
-              return.sums = F),
-            get.psi.ps(
-              data = data, ps.formula = ps.formula,
-              coef.a.l = coef.a.l, var.a.l = var.a.l,
-              return.sums = F)) }),
-      warning = function(w) {message(w); evar},
-      error = function(e) {message(e); evar})
+                data = data, g = x, args = args,
+                ps.wts = ps.wts,
+                return.sums = F) }),
+        warning = function(w) {message(w); evar},
+        error = function(e) {message(e); evar})
+    }
   }
 
   return(list(est = est,
@@ -114,6 +143,7 @@ fit.ipw <- function(data, args,
 #' @export
 fit.ipw.mccs <- function(data, args,
                          cov.e, B, mc.seed = 123,
+                         ps.wts = NULL,
                          start = NULL, return.var = TRUE,
                          mean.a = NULL, cov.a = NULL,
                          coef.a.l = NULL, var.a.l = NULL) {
@@ -136,71 +166,101 @@ fit.ipw.mccs <- function(data, args,
   # set starting value if not supplied
   if (is.null(start)) { start <- rep(0, len.msm) }
 
-  # compute marginal mean and covariance of A if not supplied
-  if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
-  if (is.null(cov.a)) {
-    if (is.vector(A)) {
-      cov.a <- var(A) - cov.e
-    } else {
-      cov.a <- cov(A) - cov.e
+  if (is.null(ps.wts)) {
+
+    # compute marginal mean and covariance of A if not supplied
+    if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
+    if (is.null(cov.a)) {
+      if (is.vector(A)) {
+        cov.a <- var(A) - cov.e
+      } else {
+        cov.a <- cov(A) - cov.e
+      }
+    }
+
+    # fit propensity score model if not supplied
+    if (is.null(coef.a.l)) {
+      model.a.l <- lm(as.formula(paste0("A", ps.formula)), data = data)
+      coef.a.l <- t(coef(model.a.l))
+      var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) -
+        d.cov.e
     }
   }
 
-  # fit propensity score model if not supplied
-  if (is.null(coef.a.l)) {
-    model.a.l <- lm(as.formula(paste0("A", ps.formula)), data = data)
-    coef.a.l <- t(coef(model.a.l))
-    var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) -
-      d.cov.e
-  }
-
   ## get naive estimates to use as starting values
-  root.naive <- fit.ipw(data = data, args = args,
+  root.naive <- fit.ipw(data = data, args = args, ps.wts = ps.wts,
                         start = start, return.var = F)$est[1:len.msm]
 
   ## create MCCS IPW estimating function
   get.psi.ipw.mccs <- make.mccs(
     get.psi = function(data, g, args, return.sums = T) {
-      get.psi.ipw(data = data, args = args,
-                  g = g,
-                  mean.a = mean.a, cov.a = cov.a,
+      get.psi.ipw(data = data, args = args, g = g,
+                  ps.wts = ps.wts,
                   return.sums = return.sums) },
     data = data, args = args,
     cov.e = cov.e, B = B, mc.seed = mc.seed)
 
   # Solve MCCS IPW equation
-  root <- tryCatch(
-    expr = rootSolve::multiroot(
-      f = function(xx) get.psi.ipw.mccs(x = c(xx, c(coef.a.l), log(var.a.l))),
-      start = root.naive)$root,
-    warning = function(w) {message(w); rep(NA, len.msm)},
-    error = function(e) {message(e); rep(NA, len.msm)})
+  root <- #tryCatch(
+    #expr =
+    rootSolve::multiroot(
+      f = function(xx) {
+        if (is.null(ps.wts)) {
+          x <- c(xx, c(coef.a.l), log(var.a.l))
+        } else {
+          x <- xx
+        }
+        get.psi.ipw.mccs(x = x) },
+      start = root.naive)$root#,
+    #warning = function(w) {message(w); rep(NA, len.msm)},
+   # error = function(e) {message(e); rep(NA, len.msm)})
 
   # combine MSM and PS model parameters
-  est <- c(root, coef.a.l, log(var.a.l))
-  names(est) <- c(
-    paste0("g.", 0:(len.msm - 1)),
-    paste0("coef.a.l.", 1:(len.A*len.ps)),
-    paste0("log.var.a.l", 1:len.A))
+  if (is.null(ps.wts)) {
+    est <- c(root, coef.a.l, log(var.a.l))
+    names(est) <- c(
+      paste0("g.", 0:(len.msm - 1)),
+      paste0("coef.a.l.", 1:(len.A*len.ps)),
+      paste0("log.var.a.l", 1:len.A))
+  } else {
+    est <- root
+    names(est) <- paste0("g.", 0:(len.msm - 1))
+  }
 
-  # sandwich variance estimate if requested
-  evar <- matrix(NA, len.msm + len.ps, len.msm + len.ps)
-  if (return.var) {
-    evar <- tryCatch(
-      expr = get.sand.est(
-        ghat = est,
-        n = n,
-        get.psi = function(x) {
-          cbind(
-            get.psi.ipw.mccs(x = x, return.sums = F),
-            get.psi.ps(
-              data = data, ps.formula = ps.formula,
-              coef.a.l = matrix(x[len.msm + 1:(len.A*len.ps)],
-                                ncol = len.ps, byrow = F),
-              var.a.l = exp(tail(x, len.A)),# + d.cov.e,
-              return.sums = F)) }),
-      warning = function(w) {message(w); evar},
-      error = function(e) {message(e); evar})
+  # sandwich variance estimates including PS model if requested
+  if (is.null(ps.wts)) {
+    evar <- matrix(NA, length(est), length(est))
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = est,
+          n = n,
+          get.psi = function(x) {
+              cbind(
+                get.psi.ipw.mccs(x = x, return.sums = F),
+                get.psi.ps(
+                  data = data, ps.formula = ps.formula,
+                  coef.a.l = matrix(x[len.msm + 1:(len.A*len.ps)],
+                                    ncol = len.ps, byrow = F),
+                  var.a.l = exp(tail(x, len.A)),
+                  return.sums = F)) }),
+          warning = function(w) {message(w); evar},
+          error = function(e) {message(e); evar})
+    }
+  } else {
+
+    # sandwich variance estimates excluding PS model if requested
+    evar <- matrix(NA, len.msm, len.msm)
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = est,
+          n = n,
+          get.psi = function(x) {
+            get.psi.ipw.mccs(x = x, return.sums = F) }),
+        warning = function(w) {message(w); evar},
+        error = function(e) {message(e); evar})
+    }
   }
 
   return(list(est = est,

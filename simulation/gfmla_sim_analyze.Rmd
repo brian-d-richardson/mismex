@@ -71,8 +71,8 @@ sim.out <- bind_rows(sim.out.list)
 
 # true estimands
 g <- c(-2, 0.7, -0.6, 0.4, -0.4, -0.2)          # outcome model parameters
-a <- 0:4                                       # exposure value of interest
-EYa.true <- 0.4 * inv.logit(-2 + 0.7 * a) +    # true dose response curve at a
+a <- 0:4                                        # exposure value of interest
+EYa.true <- 0.4 * inv.logit(-2 + 0.7 * a) +     # true dose response curve at a
   0.4 * inv.logit(-2.6 + 0.3 * a) +
   0.1 * inv.logit(-1.6 + 0.5 * a) +
   0.1 * inv.logit(-2.2 + 0.1 * a)
@@ -88,7 +88,13 @@ sim.out.long <- sim.out %>%
     mutate(method = factor(substr(method.aa, 5, 6),
                            levels = c("OL", "OG",
                                       "NL", "NG",
-                                      "CL", "CG")),
+                                      "CL", "CG"),
+                           labels = c("Oracle GLM",
+                                      "Oracle G-Formula",
+                                      "Naive GLM",
+                                      "Naive G-Formula",
+                                      "Corrected GLM",
+                                      "Corrected G-Formula")),
            aa = factor(substr(method.aa, 8, 8)),
            a = factor(a[aa]),
            name = factor(substr(method.aa, 1, 3)),
@@ -123,8 +129,6 @@ sim.out.long %>%
 
 # extract simulation parameters
 n <- unique(sim.out$n)
-B <- unique(sim.out$B)
-vare <- unique(sim.out$vare)
 
 # make labels for plots
 method.labs <- c("Oracle GLM",
@@ -140,14 +144,8 @@ names(method.labs) <- c("OL", "OG",
 n.labs <- paste0("n = ", n)
 names(n.labs) <- n
 
-B.labs <- paste0("B = ", B)
-names(B.labs) <- B
-
 a.labs <- paste0("a = ", a)
 names(a.labs) <- a
-
-vare.labs <- paste0("sigma_e = ", vare)
-names(vare.labs) <- vare
 
 # colorblind friendly pallette
 pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
@@ -157,77 +155,52 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 
 ```{r}
 
-# separate plots for each sample size
-plot.by.a <- function(a.,
-                      method. = names(method.labs),
-                      n. = n,
-                      vare. = vare,
-                      est_cutoff = Inf) {
+# separate plots for each exposure value a, and for selected methods
+plot.by.a <- function(a., methods. = method.labs, title = T) {
   
-  # data for plot
-  plot.dat <- sim.out.long %>% 
+  plot <- sim.out.long %>% 
     filter(a == a.,
-           method %in% method.,
-           n %in% n.,
-           vare %in% vare.) %>%  
-    mutate(remove = abs(est - EYa.true) > est_cutoff,
-           lab.y = 0.55*(est_cutoff - EYa.true))
-  
-  # count removed observations
-  remove.dat <- plot.dat %>% 
-    group_by(method, n, B, vare, lab.y, EYa.true) %>% 
-    summarise(n.remove = sum(remove, na.rm = T)) %>% 
-    mutate(label = ifelse(n.remove > 0,
-                          paste0(n.remove, "\n",
-                                 method.labs[method],
-                                 "\npoints outside\nrange"), ""),
-           lab.y = ifelse(n.remove > 0, lab.y, EYa.true))
-
-  # create plot
-  plot.dat %>% 
-    filter(remove == F) %>% 
+           method %in% methods.) %>% 
   ggplot(aes(x = method,
              y = est,
              fill = method,
              color = method)) +
     geom_boxplot() +
-    geom_text(data = remove.dat,
-              aes(x = 2, y = lab.y, label = label),
-              size = 2, color = "black") +
-    stat_summary(fun = mean,
-                 geom = "point",
-                 shape = 8,
-                 size = 2,
-                 orientation = "x",
-                 show.legend = F) +
     geom_hline(aes(yintercept = EYa.true),
                linetype = "dashed",
                color = "orange") +
-    facet_grid(vare ~ n,
-               scales = "free",
-               labeller = labeller(n = n.labs,
-                                   vare = vare.labs)) +
+    facet_wrap(~ n,
+               scales = "free", 
+               ncol = 1,
+               labeller = labeller(n = n.labs)) +
     labs(y = "Parameter Estimate",
          fill = "Method",
          color = "Method") +
-    ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
-            subtitle = paste0("a = ", a., "; ",
-                              n.rep, " simulations per setting")) +
     theme_bw() +
     theme(axis.title.x = element_blank(),
           axis.ticks.x = element_blank(),
-          axis.text.x = element_blank()) +
+          axis.text.x = element_blank(),
+          legend.position = "bottom") +
     scale_fill_manual(values = pal_light,
                       labels = method.labs) +
     scale_color_manual(values = pal_dark,
                       labels = method.labs)
+  
+  if (title) {
+    plot <- plot +
+      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+              subtitle = paste0("a = ", a., "; ",
+                                n.rep, " simulations per setting"))
+
+  }
+  return(plot)
 }
 
 ```
 
 ### Plots of Simulation Results
 
-Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at exposure values $a = 0,1,2,3,4$.
+Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at exposure values $a = 0,1,2,3,4$. The corrected GLM method has several outliers that make it difficult to assess other estimators.
 
 ```{r message = F, eval = F}
 
@@ -239,101 +212,48 @@ plot.by.a(a. = 4)
 
 ```
 
-```{r message = F}
+Below are plots excluding the "GLM" method.
 
-plot.by.a(a. = 0, est_cutoff = 4)
-plot.by.a(a. = 1, est_cutoff = 3)
-plot.by.a(a. = 2, est_cutoff = 2)
-plot.by.a(a. = 3, est_cutoff = 2)
-plot.by.a(a. = 4, est_cutoff = 2)
+```{r fig.width=6, fig.height=6}
 
-```
+gfmla.methods <- c("Oracle G-Formula",
+                   "Naive G-Formula",
+                   "Corrected G-Formula")
 
-### Primary Plot
-
-This plot shows only the simulation setting considered in the g-formula simulations in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$, and only includes g-formula results.
-
-```{r}
-
-plot.by.a(a. = 3, method. = c("OG", "NG", "CG"), n. = 800, vare. = 0.25)
+plot.by.a(a. = 0, methods. = gfmla.methods)
+plot.by.a(a. = 1, methods. = gfmla.methods)
+plot.by.a(a. = 2, methods. = gfmla.methods)
+plot.by.a(a. = 3, methods. = gfmla.methods)
+plot.by.a(a. = 4, methods. = gfmla.methods)
 
 ```
 
-### Primary Table
+### Tables of Simulation Results
 
-Below is a table of the setting considered in the g-formula simulations in the original Blette submission, with $a=3$, $n=800$, $\sigma_e^2=0.25$. It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), mean squared error (MSE), and empirical coverage probability of the 95% CI.
-
-```{r}
-
-tbl.a3 <- sim.out.long %>% 
-  filter(a == 3,
-         n == 800,
-         vare == 0.25) %>% 
-  group_by(method) %>% 
-  summarise(bias = mean(est - EYa.true, na.rm = T),
-            emp.se = sd(est, na.rm = T),
-            est.se = mean(ste, na.rm = T),
-            mse = mean((est - EYa.true)^2),
-            ci.cov = mean(ci.cov, na.rm = T))
-
-tbl.a3 %>% 
-  kable(digits = 3,
-        col.names = c("Method", "Bias", "ESE", "ASE", "MSE", "CI Coverage"),
-        caption = "Estimated E{Y(a)} for a = 3, n = 800, vare = 0.25") %>%
-  kable_styling("striped")
-
-```
-
-### Secondary Table
-
-Below is a table with a sample size of $n=8000$.
-
-```{r}
-
-tbl.a3.n8k <- sim.out.long %>% 
-  filter(a == 3,
-         n == 8000,
-         vare == 0.25) %>% 
-  group_by(method) %>% 
-  summarise(bias = mean(est - EYa.true, na.rm = T),
-            emp.se = sd(est, na.rm = T),
-            est.se = mean(ste, na.rm = T),
-            mse = mean((est - EYa.true)^2),
-            ci.cov = mean(ci.cov, na.rm = T))
-
-tbl.a3.n8k %>% 
-  kable(digits = 3,
-        col.names = c("Method", "Bias", "ESE", "ASE", "MSE", "CI Coverage"),
-        caption = "Estimated E{Y(a)} for a = 3, n = 8000, vare = 0.25") %>%
-  kable_styling("striped")
-
-```
-
-### Complete Table
-
-For completion, we also include a table with bias, ESE, and ASE across all settings considered.
+Below is a table for the primary estimand of interest ($a=3$). It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the 95% CI.
 
 ```{r}
 
 tbl <- sim.out.long %>% 
-  group_by(a, method, n, B, vare) %>% 
-  summarise(bias = mean(est - EYa.true, na.rm = T),
-            emp.se = sd(est, na.rm = T),
-            est.se = mean(ste, na.rm = T),
-            ci.cov = mean(ci.cov, na.rm = T)) %>% 
-  gather(key, value, bias:ci.cov) %>% 
-  unite(Group, a, key) %>% 
-  spread(Group, value)
+  filter(method %in% c("Naive G-Formula",
+                       "Corrected G-Formula")) %>% 
+  group_by(n, method, a) %>% 
+  summarise(bias = 100 * mean(est - EYa.true, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(ste, na.rm = T),
+            ci.cov = 100 * mean(ci.cov, na.rm = T))
 
-setNames(tbl, sub(".+_", "", names(tbl))) %>% 
-  kable(digits = 3) %>%
-  kable_styling("striped") %>%
-  add_header_above(c(" " = 4,
-                     "E{Y(0)}" = 4,
-                     "E{Y(1)}" = 4,
-                     "E{Y(2)}" = 4,
-                     "E{Y(3)}" = 4,
-                     "E{Y(4)}" = 4))
-  
+kbl <- tbl %>% 
+  kable(format = "latex",
+        digits = 1,
+        align = c(rep("c", 3),
+                  rep("r", 4)),
+        booktabs = TRUE,
+        linesep = c("", "", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "Method", "a",
+                      "Bias", "ESE", "ASE", "CI Coverage")) %>%
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
 ```
-

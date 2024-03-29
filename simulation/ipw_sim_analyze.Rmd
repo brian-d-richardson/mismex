@@ -38,11 +38,11 @@ The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in
 
 In these simulations, we compare six methods:
 
-1) Oracle Linear Model
+1) Oracle Regression Model
 2) Oracle IPW
-3) Naive Linear Model
+3) Naive Regression Model
 4) Naive IPW
-5) Corrected Linear Model
+5) Corrected Regression Model
 6) Corrected IPW
 
 To construct the standardized weights for the oracle and naive IPW estimators, the normal densities $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated. For the numerator, the sample mean and covariance of $\pmb{A}$ are used. For the denominator, a linear model $\pmb{A} \sim L$ is fit, where it is assumed/known that $A_1, A_2, A_3$ are conditionally independent given $L$.
@@ -82,7 +82,13 @@ sim.out.long <- sim.out %>%
     mutate(method = factor(substr(method.param, 6, 7),
                            levels = c("OL", "OI",
                                       "NL", "NI",
-                                      "CL", "CI")),
+                                      "CL", "CI"),
+                           labels = c("Oracle Regression",
+                                      "Oracle IPW",
+                                      "Naive Regression",
+                                      "Naive IPW",
+                                      "Corrected Regression",
+                                      "Corrected IPW")),
            param = factor(substr(method.param, 9, 9)),
            name = factor(substr(method.param, 1, 4)),
            g.true = g[param]) %>% 
@@ -106,7 +112,7 @@ We first check for simulations with errors.
 # summarize proportion of missing data by setting
 sim.out.long %>% 
   filter(param == 1) %>% 
-  group_by(method, n, B, vare) %>% 
+  group_by(method, n) %>% 
   summarise(prop.error = mean(is.na(ghat))) %>% 
   filter(prop.error > 0) %>% 
   ungroup()
@@ -121,27 +127,10 @@ Below are boxplots of the empirical distributions of estimators for $\pmb{\gamma
 
 # extract simulation parameters
 n <- unique(sim.out$n)
-B <- unique(sim.out$B)
-vare <- unique(sim.out$vare)
 
 # make labels for plots
-method.labs <- c("Oracle Linear",
-                 "Naive Linear",
-                 "Corrected Linear",
-                 "Oracle IPW",
-                 "Naive IPW",
-                 "Corrected IPW")
-names(method.labs) <- c("OL", "NL", "CL",
-                        "OI", "NI", "CI")
-
 n.labs <- paste0("n = ", n)
 names(n.labs) <- n
-
-B.labs <- paste0("B = ", B)
-names(B.labs) <- B
-
-vare.labs <- paste0("sigma_e = ", vare)
-names(vare.labs) <- vare
 
 param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
 names(param.labs) <- 1:4
@@ -154,13 +143,11 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 
 ```{r}
 
-# separate plots for each sample size
-plot.by.var <- function(vare. = 0.05, est_cutoff = Inf) {
+# create plots
+make.plot <- function(title = T) {
   
-  ggplot(
-    data = filter(sim.out.long,
-                  vare == vare.,
-                  abs(ghat - g.true) < est_cutoff),
+  plot <- ggplot(
+    data = sim.out.long,
     aes(x = method,
         y = ghat,
         fill = method,
@@ -182,23 +169,27 @@ plot.by.var <- function(vare. = 0.05, est_cutoff = Inf) {
     labs(y = "Parameter Estimate",
          fill = "Method",
          color = "Method") +
-    ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
-            subtitle = paste0(n.rep, " simulations per setting")) +
     theme_bw() +
     theme(axis.title.x = element_blank(),
           axis.ticks.x = element_blank(),
-          axis.text.x = element_blank()) +
-    scale_fill_manual(values = pal_light,
-                      labels = method.labs) +
-    scale_color_manual(values = pal_dark,
-                      labels = method.labs)
+          axis.text.x = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_manual(values = pal_light) +
+    scale_color_manual(values = pal_dark)
+  
+  if (title) {
+    plot <- plot + 
+      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+            subtitle = paste0(n.rep, " simulations per setting"))
+  }
+  return(plot)
 }
 
 ```
 
 ```{r}
 
-plot.by.var()
+make.plot()
 
 ```
 
@@ -209,23 +200,28 @@ Below is a table of the empirical bias, empirical standard error, mean estimated
 ```{r}
 
 tbl <- sim.out.long %>% 
-  group_by(param, method, n, B, vare) %>% 
-  summarise(bias = mean(ghat - g.true, na.rm = T),
-            emp.se = sd(ghat, na.rm = T),
-            est.se = mean(stde),
-            ci.cov = mean(ci.cov, na.rm = T)) %>% 
-  gather(key, value, bias:ci.cov) %>% 
-  unite(Group, param, key) %>% 
-  spread(Group, value)
+  filter(method %in% c("Naive Regression",
+                       "Naive IPW",
+                       "Corrected Regression",
+                       "Corrected IPW")) %>% 
+  mutate(Param = paste0("$\\gamma_", param, "$")) %>% 
+  group_by(n, method, Param) %>% 
+  summarise(bias = 100 * mean(ghat - g.true, na.rm = T),
+            emp.se = 100 * sd(ghat, na.rm = T),
+            est.se = 100 * mean(stde),
+            ci.cov = 100 * mean(ci.cov, na.rm = T))
 
-setNames(tbl, sub(".+_", "", names(tbl))) %>% 
-  kable(digits = 3) %>%
-  kable_styling("striped") %>%
-  add_header_above(c(" " = 4,
-                     "Component 1" = 4,
-                     "Component 2" = 4,
-                     "Component 3" = 4,
-                     "Component 4" = 4))
+kbl <- tbl %>% 
+  kable(format = "latex",
+        digits = 1,
+        align = c(rep("c", 3),
+                  rep("r", 4)),
+        booktabs = TRUE,
+        linesep = c("", "", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "Method", "Parameter", "Bias", "ESE", "ASE", "CI Coverage")) %>%
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
   
 ```
 

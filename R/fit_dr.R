@@ -19,6 +19,7 @@
 #'
 #' @export
 fit.dr <- function(data, args, a,
+                   ps.wts = NULL,
                    start = NULL, return.var = TRUE,
                    mean.a = NULL, cov.a = NULL,
                    coef.a.l = NULL, var.a.l = NULL) {
@@ -38,12 +39,18 @@ fit.dr <- function(data, args, a,
     terms(as.formula(ps.formula)), data = data))
   L <- data[, grepl("L", colnames(data))]       # covariates
 
+  # set starting value if not supplied
+  if (is.null(start)) { start <- rep(0, len.est) }
+
   # compute marginal mean and covariance of A if not supplied
-  if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
-  if (is.null(cov.a)) { if (is.vector(A)) cov.a <- var(A) else cov.a <- cov(A) }
+  if (is.null(ps.wts)) {
+    if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
+    if (is.null(cov.a)) { if (is.vector(A)) cov.a <- var(A) else cov.a <- cov(A) }
+  }
 
   # fit weighted outcome model
   root <- fit.ipw(data = data, args = args, start = start, return.var = F,
+                  ps.wts = ps.wts,
                   mean.a = mean.a, cov.a = cov.a,
                   coef.a.l = coef.a.l, var.a.l = var.a.l)$est
   outcome.params <- head(root, len.est)
@@ -59,40 +66,69 @@ fit.dr <- function(data, args, a,
   names(EYa) <- paste0("EYa.", 1:len.a)
   ghat <- c(root, EYa)
 
-  # sandwich variance estimate if requested
-  evar = matrix(NA, len.est, len.est)
-  if (return.var) {
-    evar <- tryCatch(
-      expr = get.sand.est(
-        ghat = ghat,
-        n = n,
-        get.psi = function(x) {
-          ght <- head(x, len.est + len.A*(1+len.ps))
-          ght.out <- head(x, len.est)
-          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
-                             ncol = len.ps, byrow = F)
-          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])
-          EYa <- tail(x, len.a)
-          cbind(
-            # weighted outcome model
-            get.psi.ipw(
-              data = data, g = ght, args = args, return.sums = F,
-              mean.a = mean.a, cov.a = cov.a),
-            # PS weights
-            get.psi.ps(
-              data = data, ps.formula = ps.formula,
-              coef.a.l = coef.a.l, var.a.l = var.a.l,
-              return.sums = F),
-            # E{Y(a)}
-            vapply(X = 1:len.a,
-                   FUN.VALUE = numeric(n),
-                   FUN = function(aa) {
-                     a.mod.mat <- mod.mat(terms(as.formula(formula)),
-                                          data = data.frame(A = a[aa], L))
-                     EYa[aa] - inv.link(a.mod.mat %*% ght.out)
-                   }))}),
-      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
-      error = function(e) {message(e); matrix(NA, len.est, len.est)})
+  # sandwich variance estimates including PS model if requested
+  if (is.null(ps.wts)) {
+    evar = matrix(NA, len.est, len.est)
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = ghat,
+          n = n,
+          get.psi = function(x) {
+            ght <- head(x, len.est + len.A*(1+len.ps))
+            ght.out <- head(x, len.est)
+            coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
+                               ncol = len.ps, byrow = F)
+            var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])
+            EYa <- tail(x, len.a)
+            cbind(
+              # weighted outcome model
+              get.psi.ipw(
+                data = data, g = ght, args = args, return.sums = F),
+              # PS weights
+              get.psi.ps(
+                data = data, ps.formula = ps.formula,
+                coef.a.l = coef.a.l, var.a.l = var.a.l,
+                return.sums = F),
+              # E{Y(a)}
+              vapply(X = 1:len.a,
+                     FUN.VALUE = numeric(n),
+                     FUN = function(aa) {
+                       a.mod.mat <- mod.mat(terms(as.formula(formula)),
+                                            data = data.frame(A = a[aa], L))
+                       EYa[aa] - inv.link(a.mod.mat %*% ght.out)
+                     }))}),
+        warning = function(w) {message(w); matrix(NA, len.est, len.est)},
+        error = function(e) {message(e); matrix(NA, len.est, len.est)})
+    }
+  } else {
+
+    # sandwich variance estimates excluding PS model if requested
+    evar = matrix(NA, len.est, len.est)
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = ghat,
+          n = n,
+          get.psi = function(x) {
+            ght.out <- head(x, len.est)
+            EYa <- tail(x, len.a)
+            cbind(
+              # weighted outcome model
+              get.psi.ipw(
+                data = data, g = ght.out, args = args,
+                ps.wts = ps.wts, return.sums = F),
+              # E{Y(a)}
+              vapply(X = 1:len.a,
+                     FUN.VALUE = numeric(n),
+                     FUN = function(aa) {
+                       a.mod.mat <- mod.mat(terms(as.formula(formula)),
+                                            data = data.frame(A = a[aa], L))
+                       EYa[aa] - inv.link(a.mod.mat %*% ght.out)
+                     }))}),
+        warning = function(w) {message(w); matrix(NA, len.est, len.est)},
+        error = function(e) {message(e); matrix(NA, len.est, len.est)})
+      }
   }
   colnames(evar) <- names(ghat)
 
@@ -114,6 +150,7 @@ fit.dr <- function(data, args, a,
 #'
 #' @export
 fit.dr.mccs <- function(data, args, a,
+                        ps.wts = NULL,
                         cov.e, B, mc.seed = 123,
                         start = NULL, return.var = TRUE,
                         mean.a = NULL, cov.a = NULL,
@@ -135,18 +172,24 @@ fit.dr.mccs <- function(data, args, a,
   L <- data[, grepl("L", colnames(data))]       # covariates
   d.cov.e <- diag(as.matrix(cov.e))             # cov.e vector
 
+  # set starting value if not supplied
+  if (is.null(start)) { start <- rep(0, len.est) }
+
   # compute marginal mean and covariance of A if not supplied
-  if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
-  if (is.null(cov.a)) {
-    if (is.vector(A)) {
-      cov.a <- var(A) - cov.e
-    } else {
-      cov.a <- cov(A) - cov.e
+  if (is.null(ps.wts)) {
+    if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
+    if (is.null(cov.a)) {
+      if (is.vector(A)) {
+        cov.a <- var(A) - cov.e
+      } else {
+        cov.a <- cov(A) - cov.e
+      }
     }
   }
 
   # fit weighted outcome model
   root <- fit.ipw.mccs(data = data, args = args, start = start, return.var = F,
+                       ps.wts = ps.wts,
                        cov.e = cov.e, B = B, mc.seed = mc.seed,
                        mean.a = mean.a, cov.a = cov.a,
                        coef.a.l = coef.a.l, var.a.l = var.a.l)$est
@@ -166,45 +209,74 @@ fit.dr.mccs <- function(data, args, a,
   ## create MCCS IPW estimating function
   get.psi.ipw.mccs <- make.mccs(
     get.psi = function(data, g, args, return.sums = T) {
-      get.psi.ipw(data = data, args = args,
-                  g = g,
-                  mean.a = mean.a, cov.a = cov.a,
+      get.psi.ipw(data = data, args = args, g = g,
+                  ps.wts = ps.wts,
                   return.sums = return.sums) },
     data = data, args = args,
     cov.e = cov.e, B = B, mc.seed = mc.seed)
 
-  # sandwich variance estimate if requested
-  evar = matrix(NA, len.est, len.est)
-  if (return.var) {
-    evar <- tryCatch(
-      expr = get.sand.est(
-        ghat = ghat,
-        n = n,
-        get.psi = function(x) {
-          ght <- head(x, len.est + len.A*(1+len.ps))
-          ght.out <- head(x, len.est)
-          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
-                             ncol = len.ps, byrow = F)
-          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A]) + d.cov.e
-          EYa <- tail(x, len.a)
-          cbind(
-            # weighted outcome model
-            get.psi.ipw.mccs(x = ght, return.sums = F),
-            # PS weights
-            get.psi.ps(
-              data = data, ps.formula = ps.formula,
-              coef.a.l = coef.a.l, var.a.l = var.a.l,
-              return.sums = F),
-            # E{Y(a)}
-            vapply(X = 1:len.a,
-                   FUN.VALUE = numeric(n),
-                   FUN = function(aa) {
-                     a.mod.mat <- mod.mat(terms(as.formula(formula)),
-                                          data = data.frame(A = a[aa], L))
-                     EYa[aa] - inv.link(a.mod.mat %*% ght.out)
-                   }))}),
-      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
-      error = function(e) {message(e); matrix(NA, len.est, len.est)})
+
+
+  # sandwich variance estimates including PS model if requested
+  if (is.null(ps.wts)) {
+    evar = matrix(NA, len.est, len.est)
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = ghat,
+          n = n,
+          get.psi = function(x) {
+            ght <- head(x, len.est + len.A*(1+len.ps))
+            ght.out <- head(x, len.est)
+            coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
+                               ncol = len.ps, byrow = F)
+            var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A]) + d.cov.e
+            EYa <- tail(x, len.a)
+            cbind(
+              # weighted outcome model
+              get.psi.ipw.mccs(x = ght, return.sums = F),
+              # PS weights
+              get.psi.ps(
+                data = data, ps.formula = ps.formula,
+                coef.a.l = coef.a.l, var.a.l = var.a.l,
+                return.sums = F),
+              # E{Y(a)}
+              vapply(X = 1:len.a,
+                     FUN.VALUE = numeric(n),
+                     FUN = function(aa) {
+                       a.mod.mat <- mod.mat(terms(as.formula(formula)),
+                                            data = data.frame(A = a[aa], L))
+                       EYa[aa] - inv.link(a.mod.mat %*% ght.out)
+                     }))}),
+        warning = function(w) {message(w); matrix(NA, len.est, len.est)},
+        error = function(e) {message(e); matrix(NA, len.est, len.est)})
+    }
+  } else {
+
+    # sandwich variance estimates excluding PS model if requested
+    evar = matrix(NA, len.est, len.est)
+    if (return.var) {
+      evar <- tryCatch(
+        expr = get.sand.est(
+          ghat = ghat,
+          n = n,
+          get.psi = function(x) {
+            ght.out <- head(x, len.est)
+            EYa <- tail(x, len.a)
+            cbind(
+              # weighted outcome model
+              get.psi.ipw.mccs(x = ght.out, return.sums = F),
+              # E{Y(a)}
+              vapply(X = 1:len.a,
+                     FUN.VALUE = numeric(n),
+                     FUN = function(aa) {
+                       a.mod.mat <- mod.mat(terms(as.formula(formula)),
+                                            data = data.frame(A = a[aa], L))
+                       EYa[aa] - inv.link(a.mod.mat %*% ght.out)
+                     }))}),
+        warning = function(w) {message(w); matrix(NA, len.est, len.est)},
+        error = function(e) {message(e); matrix(NA, len.est, len.est)})
+    }
   }
   colnames(evar) <- names(ghat)
 

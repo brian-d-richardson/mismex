@@ -146,7 +146,7 @@ get.SW <- function(data,
 #' @return individual or summation estimating function values
 #'
 #' @export
-get.psi.ipw <- function(data, g, args, return.sums = T) {
+get.psi.ipw <- function(data, g, args, ps.wts = NULL, return.sums = T) {
 
   ## unpack arguments
   list2env(args, envir = environment())
@@ -162,15 +162,22 @@ get.psi.ipw <- function(data, g, args, return.sums = T) {
   ind.A <- grepl("A", colnames(data))                        # exposure columns
   len.A <- sum(ind.A)
 
-  ## extract PS model params
-  coef.a.l <- matrix(g[len.msm + 1:(len.A*len.ps)],
-                     ncol = len.ps, byrow = F)
-  var.a.l <- exp(tail(g, len.A))
+  ## get PS weights if not supplied
+  if (is.null(ps.wts)) {
 
-  ## IPW estimating function
-  psi <- get.SW(data = data, ps.formula = ps.formula,
-                coef.a.l = coef.a.l, var.a.l = var.a.l,
-                mean.a = mean.a, cov.a = cov.a) *
+    # extract PS model params
+    coef.a.l <- matrix(g[len.msm + 1:(len.A*len.ps)],
+                       ncol = len.ps, byrow = F)
+    var.a.l <- exp(tail(g, len.A))
+
+    # PS weights
+    ps.wts <- get.SW(data = data, ps.formula = ps.formula,
+                     coef.a.l = coef.a.l, var.a.l = var.a.l,
+                     mean.a = mean.a, cov.a = cov.a)
+  }
+
+  ## IPW estimating function values
+  psi <- ps.wts *
     as.vector((data$Y - inv.link(X %*% g[1:len.msm])) *
                d.inv.link(X %*% g[1:len.msm])) *
     X

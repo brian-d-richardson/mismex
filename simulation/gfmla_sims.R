@@ -1,7 +1,7 @@
 ###############################################################################
 ###############################################################################
 
-# CME Corrected Score IPW Simulations: multivariate exposure and binary outcome
+# CME Corrected Score G-Formula Simulations
 
 # Brian Richardson
 

@@ -100,15 +100,11 @@ sim.ipw <- function(n,
   # (iv) naive IPW estimator
   res.NI <- fit.ipw(data = datstar,
                     args = args.ipw,
-                    mean.a = mean.a,
-                    cov.a = cov.a,
                     start = res.NL$est[1:4])
 
   # (v) oracle IPW estimator
   res.OI <- fit.ipw(data = dat0,
                     args = args.ipw,
-                    mean.a = mean.a,
-                    cov.a = cov.a,
                     start = res.NI$est[1:4])
 
   # (vi) MCCS IPW estimator
