@@ -19,6 +19,16 @@ fit.glm <- function(data, args,
   ## unpack arguments
   list2env(args, envir = environment())
 
+  ## subset to complete cases if using case-cohort data
+  if ("R" %in% colnames(data)) {
+    data <- data[data$R == 1 | data$Y == 1,]
+  }
+
+  ## add case-cohort weights of 1 if not supplied
+  if ( !("cc.wts" %in% colnames(data)) ) {
+    data$cc.wts <- 1
+  }
+
   ## store dimensions
   n <- nrow(data)                               # sample size
   len.est <- ncol(model.matrix(                 # dimension of model parameters
@@ -75,6 +85,16 @@ fit.glm.mccs <- function(data, args,
 
   ## unpack arguments
   list2env(args, envir = environment())
+
+  ## subset to complete cases if using case-cohort data
+  if ("R" %in% colnames(data)) {
+    data <- data[data$R == 1 | data$Y == 1,]
+  }
+
+  ## add case-cohort weights of 1 if not supplied
+  if ( !("cc.wts" %in% colnames(data)) ) {
+    data$cc.wts <- 1
+  }
 
   ## store dimensions
   n <- nrow(data)                               # sample size

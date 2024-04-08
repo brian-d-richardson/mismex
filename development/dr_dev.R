@@ -50,7 +50,7 @@ L2 <- rnorm(n, 1, sqrt(0.5))                             # confounder 2
 A <- rnorm(n, 2 + 0.9*L1 - 0.6*L2, sqrt(1.1))            # exposure
 a <- seq(min(A), max(A), length = 4)                     # grid of exposures
 EY <- inv.link(model.matrix(as.formula(formula)) %*% g)  # mean of outcome
-  Y <- rnorm(n, EY, sqrt(0.16))                               # outcome
+Y <- rnorm(n, EY, sqrt(0.16))                            # outcome
 Astar <- A + rnorm(n, 0, sqrt(cov.e))                    # mismeasured A
 dat0 <- data.frame(Y, A, L1, L2)                         # oracle data
 datstar <- data.frame(Y, A = Astar, L1, L2)              # mismeasured data

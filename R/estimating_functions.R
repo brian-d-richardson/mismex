@@ -36,10 +36,17 @@ get.psi.glm <- function(data, g,
   X <- mod.mat(trms = terms(as.formula(formula)),
                data = data)
 
+  ## case-control weights
+  if ("cc.wts" %in% colnames(data)) {
+    cc.wts <- matrix(data$cc.wts, nrow = nrow(data), ncol = ncol(X))
+  } else {
+    cc.wts <- matrix(1, nrow = nrow(data), ncol = ncol(X))
+  }
+
   ## evaluate estimating equation
   psi <- as.vector((Y - inv.link(X %*% g)) *
                     d.inv.link(X %*% g)) *
-    X |>
+    X * cc.wts |>
     `colnames<-`(as.character(1:ncol(X)))
 
   if (return.sums) {
@@ -70,6 +77,13 @@ get.psi.ps <- function(data, ps.formula, coef.a.l, var.a.l, return.sums = T) {
                     data = data)
   len.ps <- ncol(modmat)                            # dimension of PS params
 
+  ## case-control weights
+  if ("cc.wts" %in% colnames(data)) {
+    cc.wts <- data$cc.wts
+  } else {
+    cc.wts <- rep(1, n)
+  }
+
   # residual matrix
   rsd <- A - modmat %*% t(coef.a.l)
 
@@ -78,7 +92,8 @@ get.psi.ps <- function(data, ps.formula, coef.a.l, var.a.l, return.sums = T) {
 
   psi.ps <- cbind(
     do.call(cbind, lapply(1:len.ps, function(i) rsd * modmat[, i])), # mean                                             # mean
-    rsd ^ 2 - matrix(var.a.l, nrow = n, ncol = len.A, byrow = T))    # variance
+    rsd ^ 2 - matrix(var.a.l, nrow = n, ncol = len.A, byrow = T)) *  # variance
+    cc.wts
 
   if (return.sums) {
     return(colSums((psi.ps)))
@@ -146,7 +161,7 @@ get.SW <- function(data,
 #' @return individual or summation estimating function values
 #'
 #' @export
-get.psi.ipw <- function(data, g, args, ps.wts = NULL, return.sums = T) {
+get.psi.ipw <- function(data, g, args, mean.a, cov.a, return.sums = T) {
 
   ## unpack arguments
   list2env(args, envir = environment())
@@ -155,6 +170,13 @@ get.psi.ipw <- function(data, g, args, ps.wts = NULL, return.sums = T) {
   X <- mod.mat(trms = terms(as.formula(formula)),
                data = data)
 
+  ## case-control weights
+  if ("cc.wts" %in% colnames(data)) {
+    cc.wts <- data$cc.wts
+  } else {
+    cc.wts <- rep(1, nrow(data))
+  }
+
   ## extract dimensions
   len.msm <- ncol(X)                                         # dim of msm params
   len.ps <- ncol(model.matrix(terms(as.formula(ps.formula)), # PS model params
@@ -162,24 +184,18 @@ get.psi.ipw <- function(data, g, args, ps.wts = NULL, return.sums = T) {
   ind.A <- grepl("A", colnames(data))                        # exposure columns
   len.A <- sum(ind.A)
 
-  ## get PS weights if not supplied
-  if (is.null(ps.wts)) {
+  # extract PS model params
+  coef.a.l <- matrix(g[len.msm + 1:(len.A*len.ps)],
+                     ncol = len.ps, byrow = F)
+  var.a.l <- exp(tail(g, len.A))
 
-    # extract PS model params
-    mean.a <- colMeans(as.matrix(A))
-    if (is.vector(A)) { cov.a <- var(A) } else { cov.a <- cov(A) }
-    coef.a.l <- matrix(g[len.msm + 1:(len.A*len.ps)],
-                       ncol = len.ps, byrow = F)
-    var.a.l <- exp(tail(g, len.A))
-
-    # PS weights
-    ps.wts <- get.SW(data = data, ps.formula = ps.formula,
-                     coef.a.l = coef.a.l, var.a.l = var.a.l,
-                     mean.a = mean.a, cov.a = cov.a)
-  }
+  # PS weights
+  ps.wts <- get.SW(data = data, ps.formula = ps.formula,
+                   coef.a.l = coef.a.l, var.a.l = var.a.l,
+                   mean.a = mean.a, cov.a = cov.a)
 
   ## IPW estimating function values
-  psi <- ps.wts *
+  psi <- ps.wts * cc.wts *
     as.vector((data$Y - inv.link(X %*% g[1:len.msm])) *
                d.inv.link(X %*% g[1:len.msm])) *
     X

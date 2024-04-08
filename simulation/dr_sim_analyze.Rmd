@@ -83,6 +83,10 @@ sim.out <- bind_rows(sim.out.list) %>%
          type = factor(type,
                        levels = c("oracle", "naive", "mccs"),
                        labels = c("Oracle", "Naive", "MCCS")),
+         spec = factor(ifelse(ps == 0 & out == 0, "PS and OR",
+                       ifelse(ps == 0 & out == 1, "PS",
+                       ifelse(ps == 1 & out == 0, "OR", ""))),
+                       levels = c("PS and OR", "PS", "OR", "")),
          ps = factor(ps,
                      levels = c(0, 1),
                      labels = c("PS Correct", "PS Incorrect")),
@@ -92,7 +96,7 @@ sim.out <- bind_rows(sim.out.list) %>%
 
 # number of sims per setting
 n.rep <- nrow(sim.out) /
-  n_distinct(dplyr::select(sim.out, method, type, ps, out, n, B, vare))
+  n_distinct(dplyr::select(sim.out, method, type, ps, out))
 
 ```
 
@@ -100,7 +104,7 @@ n.rep <- nrow(sim.out) /
 
 # summarize proportion of missing data by setting
 sim.out %>% 
-  group_by(method, type, ps, out, n, B, vare) %>% 
+  group_by(method, type, ps, out) %>% 
   summarise(prop.error = mean(is.na(est))) %>% 
   filter(prop.error > 0) %>% 
   ungroup()
@@ -108,21 +112,6 @@ sim.out %>%
 ```
 
 ```{r}
-
-# extract simulation parameters
-n <- unique(sim.out$n)
-B <- unique(sim.out$B)
-vare <- unique(sim.out$vare)
-
-# make labels for plots
-n.labs <- paste0("n = ", n)
-names(n.labs) <- n
-
-B.labs <- paste0("B = ", B)
-names(B.labs) <- B
-
-vare.labs <- paste0("sigma_e = ", vare)
-names(vare.labs) <- vare
 
 # colorblind friendly pallette
 pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
@@ -133,12 +122,9 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 ```{r}
 
 # separate plots for each sample size
-make.plot <- function(n. = n,
-                      vare. = vare) {
+make.plot <- function() {
   
   sim.out %>% 
-    filter(n %in% n.,
-           vare %in% vare.) %>% 
     ggplot(aes(x = type,
                y = est,
                fill = type,
@@ -175,26 +161,54 @@ make.plot()
 
 ### Table of Simulation Results
 
-The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), mean squared error (MSE), and empirical coverage probability of the 95% CIs for the nine estimators under the four model specification scenarios.
+The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the 95% CIs for the nine estimators under the four model specification scenarios.
 
 ```{r}
 
 tbl <- sim.out %>% 
-  filter(n == 2000,
-         vare == 0.16) %>% 
-  group_by(method, type, ps, out) %>% 
+  group_by(method, type, spec) %>% 
   summarise(bias = mean(est - g, na.rm = T),
             emp.se = sd(est, na.rm = T),
             est.se = mean(se, na.rm = T),
-            mse = mean((est - g.true)^2),
             ci.cov = mean(ci.cov, na.rm = T))
 
 tbl %>% 
   kable(digits = 3,
-        col.names = c("Method", "Type", "PS Model", "Outcome Model",
-                      "Bias", "ESE", "ASE", "MSE", "CI Coverage"),
+        col.names = c("Method", "Type", "Correct Specifications",
+                      "Bias", "ESE", "ASE", "CI Coverage"),
         caption = "Estimated MSM Slope") %>%
   kable_styling("striped")
 
 ```
 
+Below is a smaller table with only the corrected score methods.
+
+```{r}
+
+tbl2 <- sim.out %>% 
+  filter(type == "MCCS") %>% 
+  mutate(Estimator = factor(paste0(gsub("Doubly Robust", "DR", method),
+                                   " CS"),
+                            levels = c("G-Formula CS",
+                                       "IPW CS",
+                                       "DR CS"))) %>% 
+  group_by(spec, Estimator) %>% 
+  summarise(bias = 100 * mean(est - g, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(se, na.rm = T),
+            ci.cov = 100 * mean(ci.cov, na.rm = T))
+
+kbl2 <- tbl2 %>% 
+  kable(format = "latex",
+        digits = 1,
+        align = c(rep("c", 2),
+                  rep("r", 4)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace\\hline"),
+        escape = FALSE,
+        col.names = c("Correct Specifications", "Estimator",
+                      "Bias", "ESE", "ASE", "Cov")) %>%
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+```

@@ -1,11 +1,11 @@
 ###############################################################################
 ###############################################################################
 
-# CME Corrected Score IPW Simulations: multivariate exposure and binary outcome
+# Corrected Score Case Cohort DR Simulations
 
 # Brian Richardson
 
-# 2024/01/23
+# 2024/04/03
 
 ###############################################################################
 ###############################################################################
@@ -31,9 +31,10 @@ base.seed <- 10^6 * as.integer(args)
 n.sim <- 1
 
 # varied parameters
-n <- 800                          # sample size
-B <- 80                           # number of MC replicates
-vare <- 0.05                      # measurement error variance for A1, A2
+n <- 2000                               # sample size
+B <- 2#80                               # number of MC replicates
+vare <- 0.001#0.05                      # measurement error variance for A1, A2
+pi.cc <- c(0.05, 0.25, 0.5, 1)          # case sampling proportion
 
 # run simulations ---------------------------------------------------------
 
@@ -41,6 +42,7 @@ vare <- 0.05                      # measurement error variance for A1, A2
 sim.in <- expand.grid(n = n,
                       B = B,
                       vare = vare,
+                      pi.cc = pi.cc,
                       sim.id = 1:n.sim + base.seed)
 
 # run simulations
@@ -48,15 +50,16 @@ sim.out <- pbapply::pbvapply(
   X = 1:nrow(sim.in),
   FUN = function(ii) {
 
-    sim.ipw(n = sim.in$n[ii],
-            B = sim.in$B[ii],
-            vare = sim.in$vare[ii],
-            seed = sim.in$sim.id[ii])
+    sim.dr.cc(n = sim.in$n[ii],
+              B = sim.in$B[ii],
+              vare = sim.in$vare[ii],
+              pi.cc = sim.in$pi.cc[ii],
+              seed = sim.in$sim.id[ii])
 
   },
-  FUN.VALUE = numeric(52)) |>
+  FUN.VALUE = numeric(23)) |>
   t()
 
 # save sim results
 write.csv(sim.out, row.names = F,
-          paste0("simulation/sim_data/ipw_data/sd", as.integer(args), ".csv"))
+          paste0("simulation/sim_data/dr_cc_data/sd", as.integer(args), ".csv"))

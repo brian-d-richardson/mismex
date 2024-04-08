@@ -17,6 +17,16 @@ fit.gfmla <- function(data, args, a,
   ## unpack arguments
   list2env(args, envir = environment())
 
+  ## subset to complete cases if using case-cohort data
+  if ("R" %in% colnames(data)) {
+    data <- data[data$R == 1 | data$Y == 1,]
+  }
+
+  ## add case-cohort weights of 1 if not supplied
+  if ( !("cc.wts" %in% colnames(data)) ) {
+    data$cc.wts <- 1
+  }
+
   ## store values
   n <- nrow(data)                               # sample size
   len.est <- ncol(model.matrix(                 # dimension of model parameters
@@ -87,19 +97,30 @@ fit.gfmla.mccs <- function(data, args, a,
   ## unpack arguments
   list2env(args, envir = environment())
 
+  ## subset to complete cases if using case-cohort data
+  if ("R" %in% colnames(data)) {
+    data <- data[data$R == 1 | data$Y == 1,]
+  }
+
+  ## add case-cohort weights of 1 if not supplied
+  if ( !("cc.wts" %in% colnames(data)) ) {
+    data$cc.wts <- 1
+  }
+
   ## store values
-  n <- nrow(data)                               # sample size
-  len.est <- ncol(model.matrix(                 # dimension of model parameters
+  data <- data[data$R == 1 | data$Y == 1,]     # complete data
+  n <- nrow(dat)                               # sample size
+  len.est <- ncol(model.matrix(                # dimension of model parameters
     terms(as.formula(formula)), data = data))
   len.a <- length(a)                            # number of exposure values
-  L <- data[, grepl("L", colnames(data))]       # covariates
+  L <- data[, grepl("L", colnames(data))]      # covariates
 
-  # fit outcome model
+  ## fit outcome model
   root <- fit.glm.mccs(data = data, args = args,
                        cov.e = cov.e, B = B, mc.seed = mc.seed,
                        return.var = F)$est
 
-  # estimate E{Y(a)} for each supplied a value
+  ## estimate E{Y(a)} for each supplied a value
   EYa <- vapply(X = a,
                 FUN.VALUE = 0,
                 FUN = function(aa) {

@@ -1,18 +1,20 @@
 ###############################################################################
 ###############################################################################
 
-# B parameter tuning for IPW simulations
+# IPW Estimator Under Case-Cohort Sampling
 
 # Brian Richardson
 
-# 2024-01-24
+# 2024-02-19
 
-# Purpose: determine appropriate number of MC replicates B for IPW sims
+# Purpose: develop IPW estimator under mismeasured exposure with
+#          case cohort sampling
 
 ###############################################################################
 ###############################################################################
 
-# prep workspace ----------------------------------------------------------
+
+# setup workspace ---------------------------------------------------------
 
 rm(list = ls())
 library(devtools)
@@ -31,6 +33,7 @@ seed <- 1                                      # random seed
 n <- 800                                       # sample size
 B <- 2#80                                        # MC replicates
 mc.seed <- 123                                 # MC seed
+pi.cc <- 0.25                                   # case-cohort proportion
 gg <- c(0.4, 0.15, 0.15, 0.2,
         0.1, 0.1, 0, -0.1)                     # Y|A,L parameters
 g <- gg[1:4] + 0.5*gg[5:8]                     # MSM parameters
@@ -63,14 +66,22 @@ Y_prob[Y_prob < 0] <- 0                        # correct Y_prob in rare cases
 Y_prob[Y_prob > 1] <- 1
 Y <- rbinom(n, 1, Y_prob)                      # binary outcome
 colnames(A) <- colnames(Astar) <- c("A1", "A2", "A3")
-dat0 <- data.frame(Y, A, L)                    # oracle data
-datstar <- data.frame(Y, Astar, L)             # mismeasured data
+R <- rbinom(n, 1, pi.cc)                                       # c-c sampling
+A[R == 0 & Y == 0] <-
+  Astar[R == 0 & Y == 0] <- NA
+a <- seq(min(A, na.rm = T),                       # exposure values of interest
+         max(A, na.rm = T),
+         length = 10)
+dat0 <- data.frame(Y, A, L, R)        # oracle data
+datstar <- data.frame(Y, Astar, L, R) # mismeasured data
+
+# estimate case-cohort weights --------------------------------------------
+
+pi.cc.hat <- mean(datstar$R[datstar$Y == 0])
+dat0$cc.wts <- datstar$cc.wts <- (1 - datstar$Y) * datstar$R / pi.cc.hat + Y
 
 # store values for estimation ---------------------------------------------
 
-len.A <- ncol(A)                               # dimension of A
-mean.a <- colMeans(A)                          # marginal mean of A
-cov.a <- cov(A)                                # marginal covariance of A
 args.glm <- list(formula = glm.formula,        # arguments for fitting GLM
                  inv.link = inv.link,
                  d.inv.link = d.inv.link)
@@ -110,8 +121,6 @@ res.OI <- fit.ipw(data = dat0,
 res.CI <- fit.ipw.mccs(data = datstar,
                        args = args.ipw,
                        cov.e = cov.e, B = B, mc.seed = mc.seed,
-                       mean.a = colMeans(Astar),
-                       cov.a = cov(Astar) - cov.e,
                        start = res.NI$est[1:4])
 
 # combine results: estimates and std errors for 4 parameters
@@ -131,56 +140,4 @@ names(ret) <- c(
     1:4), 1, paste, collapse="."))
 
 round(ret, 2)
-
-# search over grid of B ---------------------------------------------------
-
-# grid of possible B values
-B.grid <- seq(1, 100, by = 1)
-
-# store psi and computation time B (takes ~ 7 min to run)
-search.out <- pbvapply(
-  X = 1:length(B.grid),
-  FUN.VALUE = numeric(6),
-  FUN = function(ii) {
-
-    get.psi.ipw.mccs <- make.mccs(
-      get.psi = function(data, g, args, return.sums = T) {
-        get.psi.ipw(data = data, args = args,
-                    g = g,
-                    coef.a.l = coef.a.l,
-                    var.a.l = var.a.l,
-                    mean.a = mean.a, cov.a = cov.a,
-                    return.sums = return.sums) },
-      data = datstar, args = args.ipw,
-      cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
-
-    st <- Sys.time()
-    psi <- get.psi.ipw.mccs(x = g)
-    et <- Sys.time()
-
-    return(c(B = B.grid[ii],
-             psi = psi,
-             Time = et - st))
-  }) %>%
-  t() %>%
-  as.data.frame()
-
-write.csv(search.out, "simulation/sim_data/param_tuning/ipw_res.csv", row.names = F)
-
-# plot results ------------------------------------------------------------
-
-# load results
-search.out <- read.csv("simulation/sim_data/param_tuning/ipw_res.csv")
-search.out.long <- search.out %>%
-  pivot_longer(cols = c(psi1, psi2, psi3, psi4, Time))
-
-# plot results
-ggplot(data = search.out.long,
-       aes(x = B,
-           y = value)) +
-  geom_line() +
-  facet_wrap(~ name,
-             scales = "free") +
-  labs(y = "") +
-  ggtitle("Score Values and Computation Time by Number of MC Replicates B")
 
