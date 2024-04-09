@@ -288,7 +288,7 @@ cohort sampling:
   where
   $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3, \widetilde\gamma_4, \widetilde\gamma_5, \widetilde\gamma_6, \widetilde\gamma_7)^T = (0.4, 0.15, 0.15, 0.2, 0.1, 0.1, 0, -0.1)^T$,
 - proportion $\pi=0.25$ of cases selected to have exposure $\pmb{A}$
-  measured.
+  measured, as indicated by having `R=1`.
 
 ``` r
 seed <- 1                                      # random seed
