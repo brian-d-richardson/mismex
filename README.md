@@ -341,6 +341,11 @@ args <- list(formula = formula,                # arguments for fitting
              d.inv.link = d.inv.link)
 ```
 
+To account for case cohort sampling, we add a sampling weight variable
+`cc.wts` to the data set, given by
+$\frac{(1-Y)R}{\widehat{pi}_{cc}} + Y$, where
+$\widehat{pi}_{cc} = \sum_i \frac{R_i(1-Y_i)}{1-Y_i}$.
+
 ``` r
 ## estimate case-cohort weights
 pi.cc.hat <- mean(datstar$R[datstar$Y == 0])
