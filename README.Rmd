@@ -233,7 +233,7 @@ Consider a new data generating process with a binary outcome and case cohort sam
 
 seed <- 1                                      # random seed
 n <- 800                                       # sample size
-B <- 2#30                                        # MC replicates
+B <- 30                                        # MC replicates
 mc.seed <- 123                                 # MC seed
 pi.cc <- 0.25                                   # case-cohort proportion
 gg <- c(0.4, 0.15, 0.15, 0.2,
@@ -243,7 +243,7 @@ formula <- "~A1*L + A2*L + A3*L"               # Y|A,L model formula
 ps.formula <- "~L"                             # PS model formula
 inv.link <- inv.ident;                         # MSM link function
 d.inv.link <- d.inv.ident;                     # MSM derivative of link
-vare <- 0.001#0.05                                   # variance of A1, A2
+vare <- 0.05                                   # variance of A1, A2
 cov.e <- diag(c(vare, vare, 0))                # measurement error variance
 coef.a.l <- matrix(
   data = c(0, 0.4, 0, -0.4, 0.2, -0.1),        # coefs in A|L model
@@ -271,27 +271,15 @@ colnames(A) <- colnames(Astar) <-
 R <- rbinom(n, 1, pi.cc)                       # c-c sampling
 A[R == 0 & Y == 0] <-
   Astar[R == 0 & Y == 0] <- NA
-dat0 <- data.frame(Y, A, L, R)                 # oracle data
 datstar <- data.frame(Y, Astar, L, R)          # mismeasured data
-a <- as.data.frame(matrix(
-  c(-0.01709859, -0.41727369, -0.0531144,
-    0.20031219, -0.19979007,  0.1498574,
-    0.41804918,  0.01691357,  0.3536388),
-  nrow = 3, ncol = 3, byrow = T))
+a <- apply(A, 2, function(x)                   # exposure values of interest
+  quantile(x, c(0.25, 0.5, 0.75), na.rm = T))
 colnames(a) <- colnames(A)
-
-# estimate case-cohort weights --------------------------------------------
-
-pi.cc.hat <- mean(datstar$R[datstar$Y == 0])
-dat0$cc.wts <- datstar$cc.wts <- (1 - datstar$Y) * datstar$R / pi.cc.hat + Y
-
-# store values for estimation ---------------------------------------------
-
-args <- list(formula = formula,                         # arguments for fitting
+args <- list(formula = formula,                # arguments for fitting
              ps.formula = ps.formula,
              inv.link = inv.link,
              d.inv.link = d.inv.link)
-             
+
 ```
 
 ```{r}
@@ -301,8 +289,11 @@ pi.cc.hat <- mean(datstar$R[datstar$Y == 0])
 datstar$cc.wts <- (1 - datstar$Y) * datstar$R / pi.cc.hat + Y
 
 ## corrected doubly robust estimator
-dr.mccs <- fit.dr.mccs(data = datstar, args = args, a = a,
-                       cov.e = cov.e, B = B, mc.seed = mc.seed)
+dr.cc.mccs <- fit.dr.mccs(data = datstar, args = args, a = a,
+                          cov.e = cov.e, B = B, mc.seed = mc.seed)
+
+cbind(est = round(dr.cc.mccs$est, 2),
+      stde = round(sqrt(diag(dr.cc.mccs$var)), 2))
 
 ```
 
