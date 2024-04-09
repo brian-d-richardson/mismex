@@ -5,6 +5,7 @@
 #' \item{outcome Y}
 #' \item{exposures A1, ..., Am}
 #' \item{covariates L1, ..., Lp}
+#' \item{case-cohort sampling weights cc.wts (optional)}
 #' }
 #' @param g a numeric vector, coefficients in outcome model E(Y|A,L)
 #' @param args a list of arguments including

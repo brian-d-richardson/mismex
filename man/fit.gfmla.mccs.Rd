@@ -16,11 +16,12 @@ fit.gfmla.mccs(
 )
 }
 \arguments{
-\item{data}{a data frame including coluns
+\item{data}{a data frame including columns
 \itemize{
 \item{outcome Y}
 \item{exposures A1, ..., Am}
 \item{covariates L1, ..., Lp}
+\item{case-cohort sampling weights cc.wts (optional)}
 }}
 
 \item{args}{a list of arguments including

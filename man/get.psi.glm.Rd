@@ -7,11 +7,12 @@
 get.psi.glm(data, g, args, return.sums = T)
 }
 \arguments{
-\item{data}{a data frame including coluns
+\item{data}{a data frame including columns
 \itemize{
 \item{outcome Y}
 \item{exposures A1, ..., Am}
 \item{covariates L1, ..., Lp}
+\item{case-cohort sampling weights cc.wts (optional)}
 }}
 
 \item{g}{a numeric vector, coefficients in outcome model E(Y|A,L)}

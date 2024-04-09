@@ -17,11 +17,12 @@ fit.dr(
 )
 }
 \arguments{
-\item{data}{a data frame including coluns
+\item{data}{a data frame including columns
 \itemize{
 \item{outcome Y}
 \item{exposures A1, ..., Am}
 \item{covariates L1, ..., Lp}
+\item{case-cohort sampling weights cc.wts (optional)}
 }}
 
 \item{args}{a list of arguments including
@@ -29,6 +30,7 @@ fit.dr(
 \item{\code{inv.link}: a function, inverse link function}
 \item{\code{d.inv.link}: a function, derivative of inv.link}
 \item{\code{formula}: a character string of outcome model formula}
+\item{\code{ps.formula}: a character string of propensity model formula}
 }}
 
 \item{start}{an optional numeric vector, starting parameter values}

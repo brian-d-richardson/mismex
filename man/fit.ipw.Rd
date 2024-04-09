@@ -9,18 +9,17 @@ fit.ipw(
   args,
   start = NULL,
   return.var = TRUE,
-  mean.a = NULL,
-  cov.a = NULL,
   coef.a.l = NULL,
   var.a.l = NULL
 )
 }
 \arguments{
-\item{data}{a data frame including coluns
+\item{data}{a data frame including columns
 \itemize{
 \item{outcome Y}
 \item{exposures A1, ..., Am}
 \item{covariates L1, ..., Lp}
+\item{case-cohort sampling weights cc.wts (optional)}
 }}
 
 \item{args}{a list of arguments including
@@ -36,17 +35,17 @@ fit.ipw(
 \item{return.var}{an indicator for whether empirical sandwich variance
 estimator should be computed, default is TRUE}
 
-\item{mean.a}{an optional numeric vector, the marginal mean of the exposure
-A, computed if not specified}
-
-\item{cov.a}{an optional numeric matrix, the marginal covariance of the
-exposure A, computed if not specified}
-
 \item{coef.a.l}{an optional numeric matrix, coefficients in propensity score
 model, computed if not specified}
 
 \item{var.a.l}{an optional numeric vector, variance of A|L in propensity
 score model, computed if not specified}
+
+\item{mean.a}{an optional numeric vector, the marginal mean of the exposure
+A, computed if not specified}
+
+\item{cov.a}{an optional numeric matrix, the marginal covariance of the
+exposure A, computed if not specified}
 }
 \value{
 a list of arguments including

@@ -9,11 +9,12 @@ mod.mat(trms, data)
 \arguments{
 \item{trms}{a terms object}
 
-\item{data}{a data frame including coluns
+\item{data}{a data frame including columns
 \itemize{
 \item{outcome Y}
 \item{exposures A1, ..., Am}
 \item{covariates L1, ..., Lp}
+\item{case-cohort sampling weights cc.wts (optional)}
 }}
 }
 \value{
