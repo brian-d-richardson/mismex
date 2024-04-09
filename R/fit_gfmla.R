@@ -38,11 +38,24 @@ fit.gfmla <- function(data, args, a,
   root <- fit.glm(data = data, args = args, return.var = F)$est
 
   # estimate E{Y(a)} for each supplied a value
-  EYa <- vapply(X = a,
+  EYa <- vapply(X = 1:len.a,
          FUN.VALUE = 0,
-         FUN = function(aa) {
-           a.mod.mat <- mod.mat(terms(as.formula(formula)),
-                                data = data.frame(A = aa, L))
+         FUN = function(ai) {
+           if (is.vector(a)) {
+             aa <- a[ai]
+             a.mod.mat <- mod.mat(
+               terms(as.formula(formula)),
+               data = data.frame(
+                 A = do.call("rbind", replicate(n, aa, simplify = F)),
+                 L))
+           } else {
+             aa <- a[ai,]
+             a.mod.mat <- mod.mat(
+               terms(as.formula(formula)),
+               data = data.frame(
+                 do.call("rbind", replicate(n, aa, simplify = F)),
+                 L))
+           }
            mean(inv.link(a.mod.mat %*% root))
          })
   names(EYa) <- paste0("EYa.", 1:len.a)
@@ -63,10 +76,23 @@ fit.gfmla <- function(data, args, a,
               data = data, g = ght, args = args, return.sums = F),
             vapply(X = 1:len.a,
                    FUN.VALUE = numeric(n),
-                   FUN = function(aa) {
-                     a.mod.mat <- mod.mat(terms(as.formula(formula)),
-                                          data = data.frame(A = a[aa], L))
-                     EYa[aa] - inv.link(a.mod.mat %*% ght)
+                   FUN = function(ai) {
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
+                     EYa[ai] - inv.link(a.mod.mat %*% ght)
                    }))}),
       warning = function(w) {message(w); matrix(NA, len.est, len.est)},
       error = function(e) {message(e); matrix(NA, len.est, len.est)})
@@ -108,8 +134,7 @@ fit.gfmla.mccs <- function(data, args, a,
   }
 
   ## store values
-  data <- data[data$R == 1 | data$Y == 1,]     # complete data
-  n <- nrow(dat)                               # sample size
+  n <- nrow(data)                              # sample size
   len.est <- ncol(model.matrix(                # dimension of model parameters
     terms(as.formula(formula)), data = data))
   len.a <- length(a)                            # number of exposure values
@@ -121,11 +146,24 @@ fit.gfmla.mccs <- function(data, args, a,
                        return.var = F)$est
 
   ## estimate E{Y(a)} for each supplied a value
-  EYa <- vapply(X = a,
+  EYa <- vapply(X = 1:len.a,
                 FUN.VALUE = 0,
-                FUN = function(aa) {
-                  a.mod.mat <- mod.mat(terms(as.formula(formula)),
-                                       data = data.frame(A = aa, L))
+                FUN = function(ai) {
+                  if (is.vector(a)) {
+                    aa <- a[ai]
+                    a.mod.mat <- mod.mat(
+                      terms(as.formula(formula)),
+                      data = data.frame(
+                        A = do.call("rbind", replicate(n, aa, simplify = F)),
+                        L))
+                  } else {
+                    aa <- a[ai,]
+                    a.mod.mat <- mod.mat(
+                      terms(as.formula(formula)),
+                      data = data.frame(
+                        do.call("rbind", replicate(n, aa, simplify = F)),
+                        L))
+                  }
                   mean(inv.link(a.mod.mat %*% root))
                 })
   names(EYa) <- paste0("EYa.", 1:len.a)
@@ -144,16 +182,29 @@ fit.gfmla.mccs <- function(data, args, a,
         ghat = ghat,
         n = n,
         get.psi = function(x) {
-          ght <- head(x, -length(a))
-          EYa <- tail(x, length(a))
+          ght <- head(x, -len.a)
+          EYa <- tail(x, len.a)
           cbind(
             get.psi.glm.mccs(x = ght, return.sums = F),
-            vapply(X = 1:length(a),
+            vapply(X = 1:len.a,
                    FUN.VALUE = numeric(n),
-                   FUN = function(aa) {
-                     a.mod.mat <- mod.mat(terms(as.formula(formula)),
-                                          data = data.frame(A = a[aa], L))
-                     EYa[aa] - inv.link(a.mod.mat %*% ght)
+                   FUN = function(ai) {
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
+                     EYa[ai] - inv.link(a.mod.mat %*% ght)
                    }))}),
       warning = function(w) {message(w); evar},
       error = function(e) {message(e); evar})

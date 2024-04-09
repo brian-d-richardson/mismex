@@ -219,30 +219,90 @@ cbind(est = round(dr.res$est, 2),
 
 ```
 
-### Using Known Weights
+### Case Cohort Sampling
 
-If the propensity weights are known, or if they are estimated externally, then they can be supplied using the `ps.wts` argument. In this case, the sandwich variance estimator treats weights as known.
+Consider a new data generating process with a binary outcome and case cohort sampling:
+
+* continuous confounder $L \sim U(0, 1)$,
+* trivariate continuous exposure $\pmb{A} = (A_1, A_2, A_3)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_3\left(\begin{bmatrix} 0.4L \\ -0.4L \\ 0.2 - 0.1L \end{bmatrix}, \begin{bmatrix} 0.09 & 0 & 0 \\ 0 & 0.09 & 0 \\ 0 & 0 & 0.09 \end{bmatrix}\right)$, 
+* mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2,  A^*_3)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2, \epsilon_3)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, $\pmb{\Sigma}_e = \begin{bmatrix} \sigma_e^2 & 0 & 0 \\ 0 & \sigma_e^2 & 0 \\ 0 & 0 & 0\end{bmatrix}$,
+* binary outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) =  \widetilde\gamma_0 + \widetilde\gamma_1 a_1 + \widetilde\gamma_2 a_2 + \widetilde\gamma_3 a_3 + \widetilde\gamma_4L + \widetilde\gamma_5 a_1L + \widetilde\gamma_6 a_2L + \widetilde\gamma_7 a_3L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3, \widetilde\gamma_4, \widetilde\gamma_5, \widetilde\gamma_6, \widetilde\gamma_7)^T = (0.4, 0.15, 0.15, 0.2, 0.1, 0.1, 0, -0.1)^T$,
+* proportion $\pi=0.25$ of cases selected to have exposure $\pmb{A}$ measured.
 
 ```{r}
 
-## Known PS weights
-ps.wts <- dnorm(A, mean(A), sd(A)) /
-  dnorm(A, 2 + 0.9*L1 - 0.6*L2, sqrt(1.1))
-  
-## Double Robust (known weights)
-dr.res.known.wts <- fit.dr.mccs(
-  data = datstar,
-  a = a,
-  cov.e = cov.e,
-  B = B,
-  mc.seed = mc.seed,
-  return.var = TRUE,
-  args = dr.args,
-  ps.wts = ps.wts)
+seed <- 1                                      # random seed
+n <- 800                                       # sample size
+B <- 2#30                                        # MC replicates
+mc.seed <- 123                                 # MC seed
+pi.cc <- 0.25                                   # case-cohort proportion
+gg <- c(0.4, 0.15, 0.15, 0.2,
+        0.1, 0.1, 0, -0.1)                     # Y|A,L parameters
+g <- gg[1:4] + 0.5*gg[5:8]                     # MSM parameters
+formula <- "~A1*L + A2*L + A3*L"               # Y|A,L model formula
+ps.formula <- "~L"                             # PS model formula
+inv.link <- inv.ident;                         # MSM link function
+d.inv.link <- d.inv.ident;                     # MSM derivative of link
+vare <- 0.001#0.05                                   # variance of A1, A2
+cov.e <- diag(c(vare, vare, 0))                # measurement error variance
+coef.a.l <- matrix(
+  data = c(0, 0.4, 0, -0.4, 0.2, -0.1),        # coefs in A|L model
+  nrow = 3, byrow = T)
+var.a.l <- c(0.09, 0.09, 0.09)                 # variance of A|L
 
-cbind(est = round(dr.res.known.wts$est, 2),
-      stde = round(sqrt(diag(dr.res.known.wts$var)), 2))
+# generate data -----------------------------------------------------------
 
+set.seed(seed)                                 # seed for reproducibility
+L <- runif(n)                                  # confounder
+A <- mvrnorm(n = n,                            # true exposure
+             mu = c(0, 0, 0),
+             Sigma = diag(var.a.l)) +
+  cbind(1, L) %*% t(coef.a.l)
+colnames(A) = paste0("A", 1:3)
+Astar <- A + mvrnorm(n = n,                    # mismeasured exposure
+                     m = c(0, 0, 0),
+                     Sigma = cov.e)
+Y_prob <- cbind(1, A, L, A*L) %*% gg           # mean of binary outcome
+Y_prob[Y_prob < 0] <- 0                        # correct Y_prob in rare cases
+Y_prob[Y_prob > 1] <- 1
+Y <- rbinom(n, 1, Y_prob)                      # binary outcome
+colnames(A) <- colnames(Astar) <-
+  c("A1", "A2", "A3")
+R <- rbinom(n, 1, pi.cc)                       # c-c sampling
+A[R == 0 & Y == 0] <-
+  Astar[R == 0 & Y == 0] <- NA
+dat0 <- data.frame(Y, A, L, R)                 # oracle data
+datstar <- data.frame(Y, Astar, L, R)          # mismeasured data
+a <- as.data.frame(matrix(
+  c(-0.01709859, -0.41727369, -0.0531144,
+    0.20031219, -0.19979007,  0.1498574,
+    0.41804918,  0.01691357,  0.3536388),
+  nrow = 3, ncol = 3, byrow = T))
+colnames(a) <- colnames(A)
+
+# estimate case-cohort weights --------------------------------------------
+
+pi.cc.hat <- mean(datstar$R[datstar$Y == 0])
+dat0$cc.wts <- datstar$cc.wts <- (1 - datstar$Y) * datstar$R / pi.cc.hat + Y
+
+# store values for estimation ---------------------------------------------
+
+args <- list(formula = formula,                         # arguments for fitting
+             ps.formula = ps.formula,
+             inv.link = inv.link,
+             d.inv.link = d.inv.link)
+             
+```
+
+```{r}
+
+## estimate case-cohort weights
+pi.cc.hat <- mean(datstar$R[datstar$Y == 0])
+datstar$cc.wts <- (1 - datstar$Y) * datstar$R / pi.cc.hat + Y
+
+## corrected doubly robust estimator
+dr.mccs <- fit.dr.mccs(data = datstar, args = args, a = a,
+                       cov.e = cov.e, B = B, mc.seed = mc.seed)
 
 ```
 

@@ -23,6 +23,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(MASS)
+library(tictoc)
 #setwd(dirname(getwd()))
 load_all()
 
@@ -30,7 +31,7 @@ load_all()
 
 seed <- 1                                      # random seed
 n <- 800                                       # sample size
-B <- 30                                        # MC replicates
+B <- 2#30                                        # MC replicates
 mc.seed <- 123                                 # MC seed
 pi.cc <- 0.25                                   # case-cohort proportion
 gg <- c(0.4, 0.15, 0.15, 0.2,
@@ -40,7 +41,7 @@ formula <- "~A1*L + A2*L + A3*L"               # Y|A,L model formula
 ps.formula <- "~L"                             # PS model formula
 inv.link <- inv.ident;                         # MSM link function
 d.inv.link <- d.inv.ident;                     # MSM derivative of link
-vare <- 0.05                                   # variance of A1, A2
+vare <- 0.001#0.05                                   # variance of A1, A2
 cov.e <- diag(c(vare, vare, 0))                # measurement error variance
 coef.a.l <- matrix(
   data = c(0, 0.4, 0, -0.4, 0.2, -0.1),        # coefs in A|L model

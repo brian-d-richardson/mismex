@@ -55,7 +55,7 @@ fit.dr <- function(data, args, a,
   if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
   if (is.null(cov.a)) { if (is.vector(A)) cov.a <- var(A) else cov.a <- cov(A) }
 
-    # fit propensity score model if not supplied
+  # fit propensity score model if not supplied
   if (is.null(coef.a.l) | is.null(var.a.l)) {
     model.a.l <- lm(as.formula(paste0("A", ps.formula)),
                     data = data, weights = cc.wts)
@@ -197,12 +197,21 @@ fit.dr.mccs <- function(data, args, a,
   EYa <- vapply(X = 1:len.a,
                 FUN.VALUE = 0,
                 FUN = function(ai) {
-                  if (is.vector(a)) { aa <- a[i] } else { aa <- a[ai,] }
-                  a.mod.mat <- mod.mat(
-                    terms(as.formula(formula)),
-                    data = data.frame(
-                      do.call("rbind", replicate(n, aa, simplify = F)),
-                      L))
+                  if (is.vector(a)) {
+                    aa <- a[ai]
+                    a.mod.mat <- mod.mat(
+                      terms(as.formula(formula)),
+                      data = data.frame(
+                        A = do.call("rbind", replicate(n, aa, simplify = F)),
+                        L))
+                  } else {
+                    aa <- a[ai,]
+                    a.mod.mat <- mod.mat(
+                      terms(as.formula(formula)),
+                      data = data.frame(
+                        do.call("rbind", replicate(n, aa, simplify = F)),
+                        L))
+                    }
                   mean(inv.link(a.mod.mat %*% outcome.params))
                 })
   names(EYa) <- paste0("EYa.", 1:len.a)
@@ -243,12 +252,21 @@ fit.dr.mccs <- function(data, args, a,
             vapply(X = 1:len.a,
                    FUN.VALUE = numeric(n),
                    FUN = function(ai) {
-                     if (is.vector(a)) { aa <- a[i] } else { aa <- a[ai,] }
-                     a.mod.mat <- mod.mat(
-                       terms(as.formula(formula)),
-                       data = data.frame(
-                         do.call("rbind", replicate(n, aa, simplify = F)),
-                         L))
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
                      EYa[ai] - inv.link(a.mod.mat %*% ght.out)
                    }))}),
       warning = function(w) {message(w); matrix(NA, len.est, len.est)},
