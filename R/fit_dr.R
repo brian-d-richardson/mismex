@@ -23,6 +23,8 @@ fit.dr <- function(data, args, a,
                    mean.a = NULL, cov.a = NULL,
                    coef.a.l = NULL, var.a.l = NULL) {
 
+  #start = NULL; return.var = TRUE; mean.a = NULL; cov.a = NULL; coef.a.l = NULL; var.a.l = NULL
+
   ## unpack arguments
   list2env(args, envir = environment())
 
@@ -72,11 +74,11 @@ fit.dr <- function(data, args, a,
   EYa <- vapply(X = 1:len.a,
                 FUN.VALUE = 0,
                 FUN = function(ai) {
-                  if (is.vector(a)) { aa <- a[i] } else { aa <- a[ai,] }
+                  if (is.vector(a)) { aa <- a[ai] } else { aa <- a[ai,] }
                   a.mod.mat <- mod.mat(
                     terms(as.formula(formula)),
                     data = data.frame(
-                      do.call("rbind", replicate(n, aa, simplify = F)),
+                      A = do.call("rbind", replicate(n, aa, simplify = F)),
                       L))
                   mean(inv.link(a.mod.mat %*% outcome.params))
                 })
@@ -84,7 +86,8 @@ fit.dr <- function(data, args, a,
   ghat <- c(root, EYa)
 
   # sandwich variance estimates including PS model if requested
-  evar = matrix(NA, len.est, len.est)
+  evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
+                              len.est + len.a + len.ps + len.A))
   if (return.var) {
     evar <- tryCatch(
       expr = get.sand.est(
@@ -111,16 +114,16 @@ fit.dr <- function(data, args, a,
             vapply(X = 1:len.a,
                    FUN.VALUE = numeric(n),
                    FUN = function(ai) {
-                     if (is.vector(a)) { aa <- a[i] } else { aa <- a[ai,] }
+                     if (is.vector(a)) { aa <- a[ai] } else { aa <- a[ai,] }
                      a.mod.mat <- mod.mat(
                        terms(as.formula(formula)),
                        data = data.frame(
-                         do.call("rbind", replicate(n, aa, simplify = F)),
+                         A = do.call("rbind", replicate(n, aa, simplify = F)),
                          L))
                      EYa[ai] - inv.link(a.mod.mat %*% ght.out)
                    }))}),
-      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
-      error = function(e) {message(e); matrix(NA, len.est, len.est)})
+      warning = function(w) {message(w); evar },
+      error = function(e) {message(e); evar })
   }
   colnames(evar) <- names(ghat)
 
@@ -227,7 +230,8 @@ fit.dr.mccs <- function(data, args, a,
     cov.e = cov.e, B = B, mc.seed = mc.seed)
 
   # sandwich variance estimates including PS model if requested
-  evar = matrix(NA, len.est, len.est)
+  evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
+                              len.est + len.a + len.ps + len.A))
   if (return.var) {
     evar <- tryCatch(
       expr = get.sand.est(
@@ -269,8 +273,8 @@ fit.dr.mccs <- function(data, args, a,
                      }
                      EYa[ai] - inv.link(a.mod.mat %*% ght.out)
                    }))}),
-      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
-      error = function(e) {message(e); matrix(NA, len.est, len.est)})
+      warning = function(w) {message(w); evar },
+      error = function(e) {message(e); evar })
   }
   colnames(evar) <- names(ghat)
 

@@ -64,15 +64,16 @@ fit.ipw <- function(data, args,
   }
 
   # solve IPW equation
-  root <- tryCatch(
-    expr = rootSolve::multiroot(
+  root <- #tryCatch(
+    #expr =
+    rootSolve::multiroot(
       f = function(x) {
         get.psi.ipw(
           data = data, g = c(x, c(coef.a.l), log(var.a.l)),
           mean.a = mean.a, cov.a = cov.a, args = args) },
-      start = start)$root,
-    warning = function(w) {message(w); rep(NA, len.msm)},
-    error = function(e) {message(e); rep(NA, len.msm)})
+      start = start)$root#,
+    #warning = function(w) {message(w); rep(NA, len.msm)},
+    #error = function(e) {message(e); rep(NA, len.msm)})
 
   # combine MSM and PS model parameters
   est <- c(root, coef.a.l, log(var.a.l))

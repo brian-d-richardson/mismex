@@ -1,13 +1,13 @@
 ###############################################################################
 ###############################################################################
 
-# Doubly Robust Estimator Development
+# Doubly Robust Estimator Development with Log Link
 
 # Brian Richardson
 
-# 2024-02-19
+# 2024-05-10
 
-# Purpose: develop doubly robust estimator under mismeasured exposure
+# Purpose: develop doubly robust estimator with log link
 
 ###############################################################################
 ###############################################################################
@@ -29,27 +29,28 @@ load_all()
 
 # define parameters -------------------------------------------------------
 
-seed <- 3                                     # random seed
+seed <- 1                                     # random seed
 n <- 2000                                     # sample size
 B <- 30                                       # MC replicates
 mc.seed <- 123                                # MCCS seed
-cov.e <- 0.16                                 # var(epsilon)
-inv.link <- inv.ident                         # inverse link
-d.inv.link <- d.inv.ident                     # deriv of inv link
-g <- c(1.5, 0.7, 0.9, -0.6, -0.7, 0.4)        # outcome model parameters
-formula <- "~A*L1 + A*L2"                     # outcome model formula
-ps.formula <- "~L1 + L2"                      # propensity score model formula
+cov.e <- 0.10                                 # var(epsilon)
+inv.link <- function(x) exp(x)                # inverse link
+d.inv.link <- function(x) exp(x)              # deriv of inv link
+g <- c(-1, 0.8, 0.5, 0.5)                     # outcome model parameters
+formula <- "~A + L1 + L2"                     # outcome model formula
 ipw.formula <- "~A"                           # ipw.formula
-formula.inc <- "~A*L2"                        # incorrect outcome model
+ps.formula <- "~L1 + L2"                      # propensity score model formula
+formula.inc <- "~A + L2"                      # incorrect outcome model
 ps.formula.inc <- "~L2"                       # incorrect propensity score model
 
 # according to DGP #3 in Blette submission
 set.seed(seed)
 L1 <- rbinom(n, 1, 0.5)                                  # confounder 1
-L2 <- rnorm(n, 1, sqrt(0.5))                             # confounder 2
-A <- rnorm(n, 2 + 0.9*L1 - 0.6*L2, sqrt(1.1))            # exposure
+L2 <- rnorm(n, 0, sqrt(0.16))                            # confounder 2
+A <- rnorm(n, -1 + 0.9*L1 - 0.6*L2, sqrt(0.16))          # exposure
 a <- seq(min(A), max(A), length = 4)                     # grid of exposures
 EY <- inv.link(model.matrix(as.formula(formula)) %*% g)  # mean of outcome
+hist(EY); mean(EY)
 Y <- rnorm(n, EY, sqrt(0.16))                            # outcome
 Astar <- A + rnorm(n, 0, sqrt(cov.e))                    # mismeasured A
 dat0 <- data.frame(Y, A, L1, L2)                         # oracle data
@@ -62,7 +63,7 @@ args <- list(formula = formula,                          # arguments for fitting
 # PART I: choose sufficient B ---------------------------------------------
 
 # grid of possible B values
-B.grid <- seq(1, 100, by = 1)
+B.grid <- seq(1, 120, by = 2)
 
 # store psi and computation time B (takes ~ 30 seconds)
 run.search <- F
@@ -70,7 +71,7 @@ if (run.search) {
 
   search.out <- pbvapply(
     X = 1:length(B.grid),
-   FUN.VALUE = numeric(8),
+   FUN.VALUE = numeric(6),
     FUN = function(ii) {
 
       # create MCCS GLM estimating function
@@ -90,14 +91,15 @@ if (run.search) {
     as.data.frame()
 
   # save results
-  write.csv(search.out, "simulation/sim_data/param_tuning/dr_res.csv", row.names = F)
+  write.csv(search.out, "simulation/sim_data/param_tuning/dr_res_loglink.csv",
+            row.names = F)
 
 }
 
 # load results
-search.out <- read.csv("simulation/sim_data/param_tuning/dr_res.csv")
+search.out <- read.csv("simulation/sim_data/param_tuning/dr_res_loglink.csv")
 search.out.long <- search.out %>%
-  pivot_longer(cols = c(psi1, psi2, psi3, psi4, psi5, psi6, Time))
+  pivot_longer(cols = c(psi1, psi2, psi3, psi4, Time))
 
 # plot results
 ggplot(data = search.out.long,
@@ -112,17 +114,18 @@ ggplot(data = search.out.long,
 # PART II: estimate dose response curves with DR method -------------------
 
 # naive doubly robust
-dr.naive <- fit.dr(data = datstar, args = args, a = a)
+dr.naive <- fit.dr(data = datstar, args = args, a = a, return.var = T)
 
 # oracle doubly robust
-dr.oracle <- fit.dr(data = dat0, args = args, a = a, start = dr.naive$est[1:6])
+dr.oracle <- fit.dr(data = dat0, args = args, a = a, start = dr.naive$est[1:4])
 
 # corrected doubly robust
 #data = datstar; start = dr.naive$est[1:6]; return.var = TRUE; mean.a = NULL; cov.a = NULL; coef.a.l = NULL; var.a.l = NULL
 tic("mccs")
 dr.mccs <- fit.dr.mccs(data = datstar, args = args, a = a,
                        cov.e = cov.e, B = B, mc.seed = mc.seed,
-                       start = dr.naive$est[1:6])
+                       start = dr.naive$est[1:4],
+                       return.var = T)
 toc()
 
 # format data for dose response curve plot
@@ -131,7 +134,12 @@ drc.dat <- rbind(cbind(Method = "Naive", format.gfmla.res(a, dr.naive)),
                  cbind(Method = "MCCS", format.gfmla.res(a, dr.mccs))) %>%
   mutate(Method = factor(Method, levels = c("Naive", "Oracle", "MCCS")))
 
-drc.dat$drc.true <- 1.35 + 0.75 * a
+# get true log-linear dose response curve
+LL1 <- rbinom(10^6, 1, 0.5)                          # confounder 1 (big n)
+LL2 <- rnorm(10^6, 0, sqrt(0.16))                    # confounder 2 (big n)
+gg1 <- g[1] + log(mean(exp(g[3]*LL1 + g[4]*LL2)))    # MSM intercept
+gg2 <- g[2]                                          # MSM slope
+drc.dat$drc.true <- exp(gg1 + gg2 * a)
 
 # plot dose response curves
 ggplot(data = drc.dat,
@@ -157,16 +165,19 @@ ggplot(data = drc.dat,
 
 # return estimates and std errors of MSM coefficient for a
 get.est.se.a <- function(res, res.list) {
+
   name <- strsplit(res, "[.]")[[1]]
+
   # for IPW, extract estimate and std error for coefficient of a
   if (name[1] == "ipw") {
     est <- unname(res.list[[res]]$est[2])
     se <- sqrt(diag(res.list[[res]]$var)[2])
-  # for g-fmla and double robust, use delta method on E{Y(1)}, E{Y(0)}
+
+  # for g-fmla and double robust, use delta method on log(E{Y(0)} - E{Y(-1)})
   } else {
-    est <- diff(tail(unname(res.list[[res]]$est), 2))
+    est <- diff(log(tail(unname(res.list[[res]]$est), 2)))
     vec <- numeric(length(res.list[[res]]$est))
-    vec[(length(vec)-1):length(vec)] <- c(1, -1)
+    vec[(length(vec)-1):length(vec)] <- c(1, -1) / est
     se <- sqrt(vec %*% res.list[[res]]$var %*% vec)
   }
   c(method = name[1],
@@ -240,7 +251,7 @@ est.all <- function(ps.formula, formula) {
 }
 
 # (takes several minutes to run)
-run.est <- F
+run.est <- T#F
 if (run.est) {
 
   # (00) both models correct
@@ -268,11 +279,11 @@ if (run.est) {
            upper = est + qnorm(0.975) * se)
 
   # save results
-  write.csv(res, "development/dev_data/dr_dev.csv", row.names = F)
+  write.csv(res, "development/dev_data/dr_dev_loglink.csv", row.names = F)
 }
 
 # load results
-res <- read.csv("development/dev_data/dr_dev.csv") %>%
+res <- read.csv("development/dev_data/dr_dev_loglink.csv") %>%
   as.data.frame() %>%
   mutate(method = factor(method,
                          levels = c("gfmla", "ipw", "dr"),
@@ -296,11 +307,12 @@ ggplot(data = res,
   facet_grid(method ~ ps + out,
              labeller = labeller(ps = ps.labs,
                                  out = out.labs)) +
-  geom_hline(yintercept = 0.75,
+  geom_hline(yintercept = gg2,
              linetype = "dashed") +
   theme(axis.ticks.x = element_blank(),
         axis.text.x = element_blank(),
         axis.title.x = element_blank()) +
   labs(y = "Estimate (95% CI)",
-       color = "Type")
+       color = "Type") +
+  ylim(0, 2)
 
