@@ -82,32 +82,16 @@ sim.ipw <- function(n,
 
   ## estimate MSM parameters
 
-  # (i) naive logistic regression
-  res.NL <- fit.glm(data = datstar,
-                    args = args.glm)
-
-  # (ii) oracle logistic regression
-  res.OL <- fit.glm(data = dat0,
-                    args = args.glm,
-                    start = res.NL$est)
-
-  # (iii) MCCS logistic regression
-  res.CL <- fit.glm.mccs(dat = dat0,
-                         args = args.glm,
-                         cov.e = cov.e, B = B, mc.seed = mc.seed,
-                         start = res.NL$est)
-
-  # (iv) naive IPW estimator
+  # (i) naive IPW estimator
   res.NI <- fit.ipw(data = datstar,
-                    args = args.ipw,
-                    start = res.NL$est[1:4])
+                    args = args.ipw)
 
-  # (v) oracle IPW estimator
+  # (ii) oracle IPW estimator
   res.OI <- fit.ipw(data = dat0,
                     args = args.ipw,
                     start = res.NI$est[1:4])
 
-  # (vi) MCCS IPW estimator
+  # (iii) MCCS IPW estimator
   res.CI <- fit.ipw.mccs(data = datstar,
                          args = args.ipw,
                          cov.e = cov.e, B = B, mc.seed = mc.seed,
@@ -116,22 +100,21 @@ sim.ipw <- function(n,
                          start = res.NI$est[1:4])
 
   # combine results: estimates and std errors for 4 parameters
-  ret <- c(n, vare, B, seed,
-           res.OL$est[1:4], res.NL$est[1:4], res.CL$est[1:4],
-           res.OI$est[1:4], res.NI$est[1:4], res.CI$est[1:4],
-           sqrt(c(
-             diag(res.OL$var)[1:4], diag(res.NL$var)[1:4], diag(res.CL$var)[1:4],
-             diag(res.OI$var)[1:4], diag(res.NI$var)[1:4], diag(res.CI$var)[1:4]
-           )))
+  ret <- c(
+    n, vare, B, seed,
+    res.OI$est[1:4], res.NI$est[1:4], res.CI$est[1:4],
+    sqrt(c(
+    diag(res.OI$var)[1:4], diag(res.NI$var)[1:4], diag(res.CI$var)[1:4],
+    diag(res.OI$bc.var)[1:4], diag(res.NI$bc.var)[1:4], diag(res.CI$bc.var)[1:4]
+  )))
 
+  # return result (numeric vector of length 40)
   names(ret) <- c(
     "n", "vare", "B", "seed",
     apply(tidyr::expand_grid(
-      c("ghat", "stde"),
-      c("OL", "NL", "CL", "OI", "NI", "CI"),
+      c("ghat", "stde", "bste"),
+      c("OI", "NI", "CI"),
       1:4), 1, paste, collapse="."))
-
-  round(ret, 2)
 
   return(ret)
 }

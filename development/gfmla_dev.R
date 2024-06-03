@@ -22,6 +22,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(MASS)
+library(tictoc)
 #setwd(dirname(getwd()))
 load_all()
 
@@ -48,7 +49,7 @@ A <- rnorm(n, 2 + 0.3*L1 - 0.5*L2, sqrt(0.6))
 EY <- inv.link(model.matrix(as.formula(formula)) %*% g)        # mean of outcome
 Y <- rbinom(n, 1, EY)                                          # outcome
 Astar <- A + rnorm(n, 0, sqrt(cov.e))                          # mismeasured A
-a <- seq(min(A), max(A), length = 10)            # exposure values of interest
+a <- seq(min(A), max(A), length = 3)             # exposure values of interest
 dat0 <- data.frame(Y, A, L1, L2)                 # oracle data
 datstar <- data.frame(Y, Astar, L1, L2)          # mismeasured data
 colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L1", "L2")
@@ -81,13 +82,13 @@ if (run.search) {
     t() %>%
     as.data.frame()
 
-  write.csv(search.out, "simulation/sim_data/param_tuning/gfmla_res.csv", row.names = F)
+  write.csv(search.out, "dev_data/gfmla_res.csv", row.names = F)
 }
 
 # plot results ------------------------------------------------------------
 
 # load results
-search.out <- read.csv("simulation/sim_data/param_tuning/gfmla_res.csv")
+search.out <- read.csv("dev_data/gfmla_res.csv")
 search.out.long <- search.out %>%
   pivot_longer(cols = c(psi1, psi2, psi3, psi4, psi5, psi6, Time))
 
@@ -104,11 +105,12 @@ ggplot(data = search.out.long,
 # estimate E{Y(a)} at grid of a -------------------------------------------
 
 # g-formula
-gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args)
+gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args, return.bcvar = T)
 
 # oracle g-formula
 gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
-                          start = gfmla.naive$est[1:length(g)])
+                          start = gfmla.naive$est[1:length(g)],
+                          return.bcvar = F)
 
 # corrected g-formula
 #data = datstar; start = gfmla.naive$est[1:length(g)]

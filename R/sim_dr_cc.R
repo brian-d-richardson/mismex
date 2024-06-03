@@ -25,6 +25,8 @@
 #' @export
 sim.dr.cc <- function(n, vare, B, seed, pi.cc) {
 
+  #library(devtools); load_all(); n = 2000; vare = 0.001; B = 2; seed = 1; pi.cc = 0.5
+
   ## define parameters
 
   mc.seed <- 123                                 # MC seed
@@ -97,7 +99,7 @@ sim.dr.cc <- function(n, vare, B, seed, pi.cc) {
                          cov.e = cov.e, B = B, mc.seed = mc.seed,
                          start = dr.naive$est[1:8])
 
-  # combine results: estimates and std errors for 5 exposure values
+  # combine results (numeric vector of lenght 32)
   ret <- c(n, vare, B, seed, pi.cc,
            tail(dr.naive$est, 3),
            tail(dr.oracle$est, 3),
@@ -105,13 +107,16 @@ sim.dr.cc <- function(n, vare, B, seed, pi.cc) {
            sqrt(c(
              tail(diag(dr.naive$var), 3),
              tail(diag(dr.oracle$var), 3),
-             tail(diag(dr.mccs$var), 3)
+             tail(diag(dr.mccs$var), 3),
+             tail(diag(dr.naive$bc.var), 3),
+             tail(diag(dr.oracle$bc.var), 3),
+             tail(diag(dr.mccs$bc.var), 3)
            )))
 
   names(ret) <- c(
     "n", "vare", "B", "seed", "pi.cc",
     apply(tidyr::expand_grid(
-      c("ghat", "stde"),
+      c("ghat", "stde", "bste"),
       c("N", "O", "C"),
       1:3), 1, paste, collapse="."))
 

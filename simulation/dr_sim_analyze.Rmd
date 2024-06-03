@@ -67,7 +67,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/dr_data/sd",
+          read.csv(paste0("sim_data/dr_data/v3/sd",
                           clust, ".csv")))
   })
 
@@ -77,9 +77,12 @@ sim.out <- bind_rows(sim.out.list) %>%
          ci.lower = est - qnorm(0.975) * se,
          ci.upper = est + qnorm(0.975) * se,
          ci.cov = g.true >= ci.lower & g.true <= ci.upper,
+         bcci.lower = est - qnorm(0.975) * bse,
+         bcci.upper = est + qnorm(0.975) * bse,
+         bcci.cov = g.true >= bcci.lower & g.true <= bcci.upper,
          method = factor(method,
                          levels = c("gfmla", "ipw", "dr"),
-                         labels = c("G-Formula", "IPW", "Doubly Robust")),
+                         labels = c("G-Formula", "IPW", "DR")),
          type = factor(type,
                        levels = c("oracle", "naive", "mccs"),
                        labels = c("Oracle", "Naive", "MCCS")),
@@ -96,7 +99,7 @@ sim.out <- bind_rows(sim.out.list) %>%
 
 # number of sims per setting
 n.rep <- nrow(sim.out) /
-  n_distinct(dplyr::select(sim.out, method, type, ps, out))
+  n_distinct(dplyr::select(sim.out, n, method, type, ps, out))
 
 ```
 
@@ -104,7 +107,7 @@ n.rep <- nrow(sim.out) /
 
 # summarize proportion of missing data by setting
 sim.out %>% 
-  group_by(method, type, ps, out) %>% 
+  group_by(n, method, type, ps, out) %>% 
   summarise(prop.error = mean(is.na(est))) %>% 
   filter(prop.error > 0) %>% 
   ungroup()
@@ -122,9 +125,10 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 ```{r}
 
 # separate plots for each sample size
-make.plot <- function() {
+make.plot <- function(n. = 2000) {
   
   sim.out %>% 
+    filter(n == n.) %>% 
     ggplot(aes(x = type,
                y = est,
                fill = type,
@@ -138,7 +142,8 @@ make.plot <- function() {
          fill = "Type",
          color = "Type") +
     ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
-            subtitle = paste0(n.rep, " simulations per setting")) +
+            subtitle = paste0("n = ", n., "; ",
+                              n.rep, " simulations per setting")) +
     theme_bw() +
     theme(axis.title.x = element_blank(),
           axis.ticks.x = element_blank(),
@@ -155,38 +160,96 @@ Below is a plot of the empirical distributions of the nine estimators under the 
 
 ```{r message = F}
 
-make.plot()
+make.plot(n. = 400)
+make.plot(n. = 2000)
 
 ```
 
 ### Table of Simulation Results
 
-The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the 95% CIs for the nine estimators under the four model specification scenarios.
+The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the crude and BC 95% CIs for the corrected estimators under the four model specification scenarios and a sample size $n=400$
 
 ```{r}
 
 tbl <- sim.out %>% 
-  group_by(method, type, spec) %>% 
-  summarise(bias = mean(est - g, na.rm = T),
-            emp.se = sd(est, na.rm = T),
-            est.se = mean(se, na.rm = T),
-            ci.cov = mean(ci.cov, na.rm = T))
+  filter(type == "MCCS",
+         n == 2000) %>% 
+  group_by(spec, method) %>% 
+  mutate(method = paste0(method, " CS")) %>% 
+  summarise(bias = 100 * mean(est - g.true, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(se),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bse, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
 
-tbl %>% 
-  kable(digits = 3,
-        col.names = c("Method", "Type", "Correct Specifications",
-                      "Bias", "ESE", "ASE", "CI Coverage"),
+kbl <- tbl %>% 
+  kable(format = "latex",
+        align = c(rep("c", 2),
+                  rep("r", 6)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace"),
+        escape = FALSE,
+        digits = c(0, 0,
+                   2, 2, 2, 1, 2, 1),
+        col.names = c("Correct Specifications", "Method",
+                      "Bias", "ESE", "ASE", "Cov", "ASE", "Cov"),
         caption = "Estimated MSM Slope") %>%
-  kable_styling("striped")
+  add_header_above(c(" " = 4,
+                     "Crude" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+tbl
 
 ```
 
-Below is a smaller table with only the corrected score methods.
+Below is the same table with $n=400$.
 
 ```{r}
 
 tbl2 <- sim.out %>% 
-  filter(type == "MCCS") %>% 
+  filter(type == "MCCS",
+         n == 400) %>% 
+  group_by(spec, method) %>% 
+  mutate(method = paste0(method, " CS")) %>% 
+  summarise(bias = 100 * mean(est - g.true, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(se),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bse, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
+
+kbl2 <- tbl2 %>% 
+  kable(format = "latex",
+        align = c(rep("c", 2),
+                  rep("r", 6)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace"),
+        escape = FALSE,
+        digits = c(0, 0,
+                   2, 2, 2, 1, 2, 1),
+        col.names = c("Correct Specifications", "Method",
+                      "Bias", "ESE", "ASE", "Cov", "ASE", "Cov"),
+        caption = "Estimated MSM Slope") %>%
+  add_header_above(c(" " = 4,
+                     "Crude" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+tbl2
+
+```
+
+Below is the same table with $n = 400$.
+
+```{r}
+
+tbl3 <- sim.out %>% 
+  filter(type == "MCCS" &
+           n == 400) %>% 
   mutate(Estimator = factor(paste0(gsub("Doubly Robust", "DR", method),
                                    " CS"),
                             levels = c("G-Formula CS",
@@ -198,7 +261,7 @@ tbl2 <- sim.out %>%
             est.se = 100 * mean(se, na.rm = T),
             ci.cov = 100 * mean(ci.cov, na.rm = T))
 
-kbl2 <- tbl2 %>% 
+kbl3 <- tbl3 %>% 
   kable(format = "latex",
         digits = 1,
         align = c(rep("c", 2),

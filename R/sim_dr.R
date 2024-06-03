@@ -66,6 +66,7 @@ sim.dr <- function(n,
     if (name[1] == "ipw") {
       est <- unname(res.list[[res]]$est[2])
       se <- sqrt(diag(res.list[[res]]$var)[2])
+      bse <- sqrt(diag(res.list[[res]]$bc.var)[2])
 
       # for g-fmla and double robust, use delta method on E{Y(1)}, E{Y(0)}
     } else {
@@ -73,11 +74,13 @@ sim.dr <- function(n,
       vec <- numeric(length(res.list[[res]]$est))
       vec[(length(vec)-1):length(vec)] <- c(1, -1)
       se <- sqrt(vec %*% res.list[[res]]$var %*% vec)
+      bse <- sqrt(vec %*% res.list[[res]]$bc.var %*% vec)
     }
     c(method = name[1],
       type = name[2],
       est = est,
-      se = se)
+      se = se,
+      bse = bse)
   }
 
   # (naive, oracle, mccs) x (gfmla, ipw, dr) estimates given model specs
@@ -126,7 +129,7 @@ sim.dr <- function(n,
                     d.inv.link = d.inv.link)
     res.list[["dr.naive"]] <- fit.dr(
       data = datstar, args = dr.args, a = c(0, 1),
-      res.list[["gfmla.naive"]]$est[1:len.out])
+      start = res.list[["gfmla.naive"]]$est[1:len.out])
     res.list[["dr.oracle"]] <- fit.dr(
       data = dat0, args = dr.args, a = c(0, 1),
       start = res.list[["dr.naive"]]$est[1:len.out])
@@ -138,8 +141,8 @@ sim.dr <- function(n,
     dat <- as.data.frame(t(vapply(
       X = names(res.list),
       FUN = function(res) get.est.se.a(res = res, res.list = res.list),
-      FUN.VALUE = character(4)))) |>
-      mutate_at(c("est", "se"), as.numeric)
+      FUN.VALUE = character(5)))) |>
+      mutate_at(c("est", "se", "bse"), as.numeric)
 
     return(dat)
   }
@@ -160,7 +163,7 @@ sim.dr <- function(n,
   res.11 <- est.all(ps.formula = ps.formula.inc,
                     formula = formula.inc)
 
-  # combine results
+  # combine results (36 x 11 data frame)
   res <- cbind(n = n, B = B, vare = vare, seed = seed,
                rbind(cbind(ps = 0, out = 0, res.00),
                      cbind(ps = 1, out = 0, res.10),

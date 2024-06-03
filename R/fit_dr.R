@@ -19,7 +19,9 @@
 #'
 #' @export
 fit.dr <- function(data, args, a,
-                   start = NULL, return.var = TRUE,
+                   start = NULL,
+                   return.var = TRUE,
+                   return.bcvar = TRUE,
                    mean.a = NULL, cov.a = NULL,
                    coef.a.l = NULL, var.a.l = NULL) {
 
@@ -74,20 +76,29 @@ fit.dr <- function(data, args, a,
   EYa <- vapply(X = 1:len.a,
                 FUN.VALUE = 0,
                 FUN = function(ai) {
-                  if (is.vector(a)) { aa <- a[ai] } else { aa <- a[ai,] }
-                  a.mod.mat <- mod.mat(
-                    terms(as.formula(formula)),
-                    data = data.frame(
-                      A = do.call("rbind", replicate(n, aa, simplify = F)),
-                      L))
+                  if (is.vector(a)) {
+                    aa <- a[ai]
+                    a.mod.mat <- mod.mat(
+                      terms(as.formula(formula)),
+                      data = data.frame(
+                        A = do.call("rbind", replicate(n, aa, simplify = F)),
+                        L))
+                  } else {
+                    aa <- a[ai,]
+                    a.mod.mat <- mod.mat(
+                      terms(as.formula(formula)),
+                      data = data.frame(
+                        do.call("rbind", replicate(n, aa, simplify = F)),
+                        L))
+                  }
                   mean(inv.link(a.mod.mat %*% outcome.params))
                 })
   names(EYa) <- paste0("EYa.", 1:len.a)
   ghat <- c(root, EYa)
 
   # sandwich variance estimates including PS model if requested
-  evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
-                              len.est + len.a + len.ps + len.A))
+  evar <- as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
+                               len.est + len.a + len.ps + len.A))
   if (return.var) {
     evar <- tryCatch(
       expr = get.sand.est(
@@ -114,12 +125,21 @@ fit.dr <- function(data, args, a,
             vapply(X = 1:len.a,
                    FUN.VALUE = numeric(n),
                    FUN = function(ai) {
-                     if (is.vector(a)) { aa <- a[ai] } else { aa <- a[ai,] }
-                     a.mod.mat <- mod.mat(
-                       terms(as.formula(formula)),
-                       data = data.frame(
-                         A = do.call("rbind", replicate(n, aa, simplify = F)),
-                         L))
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
                      EYa[ai] - inv.link(a.mod.mat %*% ght.out)
                    }))}),
       warning = function(w) {message(w); evar },
@@ -127,8 +147,60 @@ fit.dr <- function(data, args, a,
   }
   colnames(evar) <- names(ghat)
 
+  # bias-corrected variance if requested
+  bc.evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
+                                 len.est + len.a + len.ps + len.A))
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = ghat,
+        n = n,
+        get.psi = function(x) {
+          ght <- head(x, len.est + len.A*(1+len.ps))
+          ght.out <- head(x, len.est)
+          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
+                             ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])
+          EYa <- tail(x, len.a)
+          cbind(
+            # weighted outcome model
+            get.psi.ipw(data = data, g = ght, args = args,
+                        mean.a = mean.a, cov.a = cov.a,
+                        return.sums = F),
+            # PS weights
+            get.psi.ps(
+              data = data, ps.formula = ps.formula,
+              coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            # E{Y(a)}
+            vapply(X = 1:len.a,
+                   FUN.VALUE = numeric(n),
+                   FUN = function(ai) {
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
+                     EYa[ai] - inv.link(a.mod.mat %*% ght.out)
+                   }))}),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
+  }
+  colnames(bc.evar) <- names(ghat)
+
   return(list(est = ghat,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
 }
 
 
@@ -146,7 +218,9 @@ fit.dr <- function(data, args, a,
 #' @export
 fit.dr.mccs <- function(data, args, a,
                         cov.e, B, mc.seed = 123,
-                        start = NULL, return.var = TRUE,
+                        start = NULL,
+                        return.var = TRUE,
+                        return.bcvar = TRUE,
                         mean.a = NULL, cov.a = NULL,
                         coef.a.l = NULL, var.a.l = NULL) {
 
@@ -278,8 +352,59 @@ fit.dr.mccs <- function(data, args, a,
   }
   colnames(evar) <- names(ghat)
 
+  # bias-corrected variance if requested
+  bc.evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
+                                 len.est + len.a + len.ps + len.A))
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = ghat,
+        n = n,
+        get.psi = function(x) {
+          ght <- head(x, len.est + len.A*(1+len.ps))
+          ght.out <- head(x, len.est)
+          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
+                             ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A]) + d.cov.e
+          EYa <- tail(x, len.a)
+          cbind(
+            # weighted outcome model
+            get.psi.ipw.mccs(x = ght, return.sums = F),
+            # PS weights
+            get.psi.ps(
+              data = data, ps.formula = ps.formula,
+              coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            # E{Y(a)}
+            vapply(X = 1:len.a,
+                   FUN.VALUE = numeric(n),
+                   FUN = function(ai) {
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
+                     EYa[ai] - inv.link(a.mod.mat %*% ght.out)
+                   }))}),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
+  }
+  colnames(bc.evar) <- names(ghat)
+
+
   return(list(est = ghat,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
 }
 
 

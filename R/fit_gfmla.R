@@ -12,7 +12,9 @@
 #'
 #' @export
 fit.gfmla <- function(data, args, a,
-                      start = NULL, return.var = TRUE) {
+                      start = NULL,
+                      return.var = TRUE,
+                      return.bcvar = TRUE) {
 
   ## unpack arguments
   list2env(args, envir = environment())
@@ -62,7 +64,7 @@ fit.gfmla <- function(data, args, a,
   ghat = c(root, EYa)
 
   # sandwich variance estimate if requested
-  evar = matrix(NA, len.est, len.est)
+  evar <- matrix(NA, len.est, len.est)
   if (return.var) {
     evar <- tryCatch(
       expr = get.sand.est(
@@ -94,14 +96,52 @@ fit.gfmla <- function(data, args, a,
                      }
                      EYa[ai] - inv.link(a.mod.mat %*% ght)
                    }))}),
-      warning = function(w) {message(w); matrix(NA, len.est, len.est)},
-      error = function(e) {message(e); matrix(NA, len.est, len.est)})
+      warning = function(w) {message(w); evar },
+      error = function(e) {message(e); evar })
+  }
+
+  # bias-corrected variance if requested
+  bc.evar = matrix(NA, len.est, len.est)
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = ghat,
+        n = n,
+        get.psi = function(x) {
+          ght <- head(x, -len.a)
+          EYa <- tail(x, len.a)
+          bind <- ifelse(n == 1, c, cbind)
+          bind(
+            get.psi.glm(
+              data = data, g = ght, args = args, return.sums = F),
+            vapply(X = 1:len.a,
+                   FUN.VALUE = numeric(n),
+                   FUN = function(ai) {
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
+                     EYa[ai] - inv.link(a.mod.mat %*% ght)
+                   }))}),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
   }
 
   return(list(est = ghat,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
 }
-
 
 #' Fit MCCS G-formula estimating equation
 #'
@@ -118,7 +158,8 @@ fit.gfmla <- function(data, args, a,
 fit.gfmla.mccs <- function(data, args, a,
                            cov.e, B, mc.seed,
                            start = NULL,
-                           return.var = TRUE) {
+                           return.var = TRUE,
+                           return.bcvar = TRUE) {
 
   ## unpack arguments
   list2env(args, envir = environment())
@@ -210,7 +251,45 @@ fit.gfmla.mccs <- function(data, args, a,
       error = function(e) {message(e); evar})
   }
 
+  # bias-corrected sandwich variance estimate if requested
+  bc.evar = matrix(NA, len.est, len.est)
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = ghat,
+        n = n,
+        get.psi = function(x) {
+          ght <- head(x, -len.a)
+          EYa <- tail(x, len.a)
+          cbind(
+            get.psi.glm.mccs(x = ght, return.sums = F),
+            vapply(X = 1:len.a,
+                   FUN.VALUE = numeric(n),
+                   FUN = function(ai) {
+                     if (is.vector(a)) {
+                       aa <- a[ai]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           A = do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     } else {
+                       aa <- a[ai,]
+                       a.mod.mat <- mod.mat(
+                         terms(as.formula(formula)),
+                         data = data.frame(
+                           do.call("rbind", replicate(n, aa, simplify = F)),
+                           L))
+                     }
+                     EYa[ai] - inv.link(a.mod.mat %*% ght)
+                   }))}),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
+  }
+
   return(list(est = ghat,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
+
 }
 

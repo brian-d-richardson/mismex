@@ -54,16 +54,19 @@ sim.gfmla.2 <- function(n,
   # estimate E{Y(a)} at grid of a -------------------------------------------
 
   # g-formula
-  gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args)
+  gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args,
+                           return.var = F, return.bcvar = F)
 
   # oracle g-formula
   gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
-                            start = gfmla.naive$est[1:length(g)])
+                            start = gfmla.naive$est[1:length(g)],
+                            return.var = F, return.bcvar = F)
 
   # corrected g-formula
   gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
                                cov.e = cov.e, B = B, mc.seed = mc.seed,
-                               start = gfmla.naive$est[1:length(g)])
+                               start = gfmla.naive$est[1:length(g)],
+                               return.var = F, return.bcvar = F)
 
   ## extract estimated E{Y(a)}
 

@@ -36,20 +36,17 @@ The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in
 
 ## Methods
 
-In these simulations, we compare six methods:
+In these simulations, we compare three methods:
 
-1) Oracle Regression Model
-2) Oracle IPW
-3) Naive Regression Model
-4) Naive IPW
-5) Corrected Regression Model
-6) Corrected IPW
+1) Oracle IPW
+2) Naive IPW
+3) Corrected IPW
 
 To construct the standardized weights for the oracle and naive IPW estimators, the normal densities $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated. For the numerator, the sample mean and covariance of $\pmb{A}$ are used. For the denominator, a linear model $\pmb{A} \sim L$ is fit, where it is assumed/known that $A_1, A_2, A_3$ are conditionally independent given $L$.
 
 To construct the standardized weights for the corrected IPW estimator, $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated using $\pmb{A}^*$. Since $\pmb{A}$ and $\pmb{\epsilon}$ are independent multivariate normal, $\textrm{E}(\pmb{A})$ can be estimated with the sample mean of $\pmb{A}^*$, and $\textrm{Cov}(\pmb{A})$ with the sample covariance of $\pmb{A}^*$ minus $\pmb{\Sigma}_e$. Likewise, since, conditional on $L$, $\pmb{A}$ and $\pmb{\epsilon}$ are independent multivariate normal, estimated coefficients from the linear model $\pmb{A}^* \sim L$ are consistent for the coefficients of $\pmb{A} \sim L$, and the conditional covariance of $\pmb{A} | L$ can be estimated by subtracting $\pmb{\Sigma}_e$ from the residual covariance of the model $\pmb{A}^* \sim L$.
 
-For both the oracle and MCCS IPW estimators, estimating equations for the estimated weights and for the outcome model are stacked. This is necessary for sandwich variance estimators to be consistent.
+For both the IPW estimators, estimating equations for the estimated weights and for the outcome model are stacked. This is necessary for sandwich variance estimators to be consistent.
 
 ## Results
 
@@ -60,7 +57,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/ipw_data/sd",
+          read.csv(paste0("sim_data/ipw_data/v3/sd",
                           clust, ".csv")))
   })
 
@@ -76,19 +73,16 @@ n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare))
 
 # make long data frame
 sim.out.long <- sim.out %>% 
-  pivot_longer(cols = starts_with("ghat") | starts_with("stde"), 
+  pivot_longer(cols = starts_with("ghat") |
+                 starts_with("stde") |
+                 starts_with("bste"), 
                names_to = "method.param",
                values_to = "val") %>% 
     mutate(method = factor(substr(method.param, 6, 7),
-                           levels = c("OL", "OI",
-                                      "NL", "NI",
-                                      "CL", "CI"),
-                           labels = c("Oracle Regression",
-                                      "Oracle IPW",
-                                      "Naive Regression",
+                           levels = c("OI", "NI", "CI"),
+                           labels = c("Oracle IPW",
                                       "Naive IPW",
-                                      "Corrected Regression",
-                                      "Corrected IPW")),
+                                      "IPW CS")),
            param = factor(substr(method.param, 9, 9)),
            name = factor(substr(method.param, 1, 4)),
            g.true = g[param]) %>% 
@@ -101,7 +95,10 @@ sim.out.long <- sim.out %>%
                           param, g.true, id)) %>% 
   mutate(ci.lower = ghat - qnorm(0.975) * stde,
          ci.upper = ghat + qnorm(0.975) * stde,
-         ci.cov = g.true >= ci.lower & g.true <= ci.upper)
+         ci.cov = g.true >= ci.lower & g.true <= ci.upper,
+         bcci.lower = ghat - qnorm(0.975) * bste,
+         bcci.upper = ghat + qnorm(0.975) * bste,
+         bcci.cov = g.true >= bcci.lower & g.true <= bcci.upper)
 
 ```
 
@@ -195,36 +192,83 @@ make.plot()
 
 ### Table of Simulation Results
 
-Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the 95% CIs corresponding to $\widehat{\pmb{\gamma}}$.
+Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the 95% CIs corresponding to $\widehat{\pmb{\gamma}}$, for naive and corrected methods, and for $n \in \{800, 8000\}$.
 
 ```{r}
 
 tbl <- sim.out.long %>% 
-  filter(method %in% c("Naive Regression",
-                       "Naive IPW",
-                       "Corrected Regression",
-                       "Corrected IPW")) %>% 
-  mutate(Param = paste0("$\\gamma_", param, "$")) %>% 
+  filter(n %in% c(800, 8000)) %>% 
+  mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
   group_by(n, method, Param) %>% 
   summarise(bias = 100 * mean(ghat - g.true, na.rm = T),
             emp.se = 100 * sd(ghat, na.rm = T),
             est.se = 100 * mean(stde),
-            ci.cov = 100 * mean(ci.cov, na.rm = T))
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bste, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
 
 kbl <- tbl %>% 
   kable(format = "latex",
-        digits = 1,
+        digits = c(0, 0, 0,
+                   2, 2,
+                   2, 1,
+                   2, 1),
         align = c(rep("c", 3),
                   rep("r", 4)),
         booktabs = TRUE,
         linesep = c("", "", "", "\\addlinespace"),
         escape = FALSE,
-        col.names = c("n", "Method", "Parameter", "Bias", "ESE", "ASE", "CI Coverage")) %>%
+        col.names = c("n", "Method", "Parameter",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov")) %>%
+  add_header_above(c(" " = 5,
+                     "Crude" = 2,
+                     "BC" = 2)) %>% 
   kable_styling("striped") %>% 
   row_spec(row = 0, bold = TRUE)
+
+tbl
   
 ```
 
+Below the same table with $n=400$.
 
+```{r}
 
+tbl2 <- sim.out.long %>% 
+  filter(n %in% c(400)) %>% 
+  mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
+  group_by(n, method, Param) %>% 
+  summarise(bias = 100 * mean(ghat - g.true, na.rm = T),
+            emp.se = 100 * sd(ghat, na.rm = T),
+            est.se = 100 * mean(stde),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bste, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
+
+kbl2 <- tbl2 %>% 
+  kable(format = "latex",
+        digits = c(0, 0, 0,
+                   2, 2,
+                   2, 1,
+                   2, 1),
+        align = c(rep("c", 3),
+                  rep("r", 4)),
+        booktabs = TRUE,
+        linesep = c("", "", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "Method", "Parameter",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov")) %>%
+  add_header_above(c(" " = 4,
+                     "Crude" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+tbl2
+
+```
 

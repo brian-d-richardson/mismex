@@ -53,7 +53,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/dr_cc_data/v1/sd",
+          read.csv(paste0("sim_data/dr_cc_data/v3/sd",
                           clust, ".csv")))
   })
 
@@ -74,7 +74,9 @@ n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare, pi.cc))
 
 # make long data frame
 sim.out.long <- sim.out %>% 
-  pivot_longer(cols = starts_with("ghat") | starts_with("stde"), 
+  pivot_longer(cols = starts_with("ghat") |
+                 starts_with("stde") |
+                 starts_with("bste"), 
                names_to = "method.param",
                values_to = "val") %>% 
     mutate(method = factor(substr(method.param, 6, 6),
@@ -94,7 +96,10 @@ sim.out.long <- sim.out %>%
                           param, g.true, id)) %>% 
   mutate(ci.lower = ghat - qnorm(0.975) * stde,
          ci.upper = ghat + qnorm(0.975) * stde,
-         ci.cov = g.true >= ci.lower & g.true <= ci.upper)
+         ci.cov = g.true >= ci.lower & g.true <= ci.upper,
+         bcci.lower = ghat - qnorm(0.975) * bste,
+         bcci.upper = ghat + qnorm(0.975) * bste,
+         bcci.cov = g.true >= bcci.lower & g.true <= bcci.upper)
 
 ```
 
@@ -102,13 +107,14 @@ We first check for simulations with errors.
 
 ```{r}
 
-# summarize proportion of missing data by setting
-sim.out.long %>% 
-  filter(param == 1) %>% 
-  group_by(method, n, pi.cc) %>% 
-  summarise(prop.error = mean(is.na(ghat))) %>% 
-  filter(prop.error > 0) %>% 
-  ungroup()
+# summarize proportion of errors in std errors by setting
+ftc.dat <- sim.out.long %>% 
+  group_by(method, n, pi.cc, param) %>% 
+  summarise(prop.error = mean(is.na(ghat) | stde > 100))
+
+ftc.dat %>% 
+  ungroup() %>% 
+  filter(prop.error > 0)
 
 ```
 
@@ -129,7 +135,7 @@ names(n.labs) <- n
 pi.cc.labs <- paste0("pi.cc = ", pi.cc)
 names(pi.cc.labs) <- pi.cc
 
-param.labs <- paste0("E{Y(a", c("1", "2", "3", "4", "5"), ")}")
+param.labs <- paste0("$\\eta(\\ba_", c("1", "2", "3", "4", "5"), ")$")
 names(param.labs) <- 1:5
 
 # colorblind friendly pallette
@@ -192,35 +198,53 @@ make.plot()
 
 ### Table of Simulation Results
 
-Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the 95% CIs corresponding to $\widehat{\pmb{\gamma}}$, only for the corrected IPW estimators.
+Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the crude and bias-corrected 95% CIs corresponding to $\textrm{E}\{Y(\pmb{a})\}$.
 
 ```{r}
 
 tbl <- sim.out.long %>% 
-  filter(method == "Corrected") %>% 
-  mutate(Param = param.labs[param],
-         pi.cc = 100 * pi.cc) %>% 
-  group_by(pi.cc, Param) %>% 
+  filter(method == "Corrected" &
+         !is.na(ghat) &
+         stde < 100) %>% 
+  group_by(pi.cc, param) %>% 
   summarise(bias = 100 * mean(ghat - g.true, na.rm = T),
             emp.se = 100 * sd(ghat, na.rm = T),
             est.se = 100 * mean(stde),
-            ci.cov = 100 * mean(ci.cov, na.rm = T))
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bste, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T)) %>% 
+  left_join(filter(ftc.dat, method == "Corrected")) %>% 
+  mutate(Param = param.labs[param],
+         pi.cc = 100 * pi.cc,
+         ftc = 100 * prop.error) %>% 
+  dplyr::select(pi.cc, Param, bias, emp.se,
+                est.se, ci.cov, bcest.se, bcci.cov, ftc)
+
 
 kbl <- tbl %>% 
-  kable(#format = "latex",
-        digits = 1,
+  kable(format = "latex",
+        digits = c(0, 0,
+                   2, 1,
+                   2, 1,
+                   1),
         align = c(rep("c", 3),
-                  rep("r", 4)),
+                  rep("r", 6)),
         booktabs = TRUE,
-        linesep = c("", "", "", "\\addlinespace"),
+        linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
-        col.names = c("pi.cc", "Parameter",
-                      "Bias", "ESE", "ASE", "CI Coverage")) %>%
+        col.names = c("Sub-cohort size", "Parameter",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov",
+                      "FTC")) %>%
+  add_header_above(c(" " = 4,
+                     "Crude" = 2,
+                     "BC" = 2,
+                     " " = 1)) %>% 
   kable_styling("striped") %>% 
   row_spec(row = 0, bold = TRUE)
 
-kbl
-
+tbl
 ```
 
 

@@ -34,7 +34,7 @@ sim.gfmla <- function(n,
   ## for troubleshooting
   #library(MASS); library(devtools); load_all()
   #n = 800; a = 3; vare = 0.25; B = 80; seed = 1;
-  #n = 800; a = 3; vare = 0.0025; B = 2; seed = 1;
+  #n = 800; a = 0:4; vare = 0.0025; B = 2; seed = 1;
 
   cov.e <- vare                                   # var(epsilon)
   mc.seed <- 123                                  # MC seed
@@ -76,49 +76,33 @@ sim.gfmla <- function(n,
 
   ## extract estimated E{Y(a)} and std error
 
-  # (i) oracle GLM
-  est.OL <- vapply(X = a, FUN.VAL = 0, FUN = function(aa)
-    c(1, aa) %*% gfmla.oracle$est[1:2])
-  ste.OL <- vapply(X = a, FUN.VAL = 0, FUN = function(aa)
-    sqrt(c(1, aa) %*% gfmla.oracle$var[1:2, 1:2] %*% c(1, aa)))
-
-  # (ii) naive GLM
-  est.NL <- vapply(X = a, FUN.VAL = 0, FUN = function(aa)
-    c(1, aa) %*% gfmla.naive$est[1:2])
-  ste.NL <- vapply(X = a, FUN.VAL = 0, FUN = function(aa)
-    sqrt(c(1, aa) %*% gfmla.naive$var[1:2, 1:2] %*% c(1, aa)))
-
-  # (iii) corrected GLM
-  est.CL <- vapply(X = a, FUN.VAL = 0, FUN = function(aa)
-    c(1, aa) %*% gfmla.mccs$est[1:2])
-  ste.CL <- vapply(X = a, FUN.VAL = 0, FUN = function(aa)
-    sqrt(c(1, aa) %*% gfmla.mccs$var[1:2, 1:2] %*% c(1, aa)))
-
   # (iv) oracle g-formula
   est.OG <- tail(gfmla.oracle$est, length(a))
   ste.OG <- sqrt(tail(diag(gfmla.oracle$var), length(a)))
+  bcs.OG <- sqrt(tail(diag(gfmla.oracle$bc.var), length(a)))
 
   # (v) naive g-formula
   est.NG <- tail(gfmla.naive$est, length(a))
   ste.NG <- sqrt(tail(diag(gfmla.naive$var), length(a)))
+  bcs.NG <- sqrt(tail(diag(gfmla.naive$bc.var), length(a)))
 
   # (vi) corrected g-formula
   est.CG <- tail(gfmla.mccs$est, length(a))
   ste.CG <- sqrt(tail(diag(gfmla.mccs$var), length(a)))
+  bcs.CG <- sqrt(tail(diag(gfmla.mccs$bc.var), length(a)))
 
   # combine results: estimates and std errors for 4 parameters
   ret <- c(n, vare, B, seed, a,
-           est.OL, est.NL, est.CL,
            est.OG, est.NG, est.CG,
-           ste.OL, ste.NL, ste.CL,
-           ste.OG, ste.NG, ste.CG)
+           ste.OG, ste.NG, ste.CG,
+           bcs.OG, bcs.NG, bcs.CG)
 
   names(ret) <- c(
     "n", "vare", "B", "seed",
     paste0("a", 1:length(a)),
     apply(tidyr::expand_grid(
-      c("est", "ste"),
-      c("OL", "NL", "CL", "OG", "NG", "CG"),
+      c("est", "ste", "bcs"),
+      c("OG", "NG", "CG"),
       1:length(a)),
       1, paste, collapse="."))
 

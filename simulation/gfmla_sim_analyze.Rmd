@@ -61,7 +61,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/gfmla_data/sd",
+          read.csv(paste0("sim_data/gfmla_data/v3/sd",
                           clust, ".csv")))
   })
 
@@ -82,18 +82,15 @@ n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare))
 
 # make long data frame
 sim.out.long <- sim.out %>% 
-  pivot_longer(cols = starts_with("est") | starts_with("ste"), 
+  pivot_longer(cols = starts_with("est") | 
+                      starts_with("ste") |
+                      starts_with("bcs"), 
                names_to = "method.aa",
                values_to = "val") %>% 
     mutate(method = factor(substr(method.aa, 5, 6),
-                           levels = c("OL", "OG",
-                                      "NL", "NG",
-                                      "CL", "CG"),
-                           labels = c("Oracle GLM",
-                                      "Oracle G-Formula",
-                                      "Naive GLM",
+                           levels = c("OG", "NG", "CG"),
+                           labels = c("Oracle G-Formula",
                                       "Naive G-Formula",
-                                      "Corrected GLM",
                                       "Corrected G-Formula")),
            aa = factor(substr(method.aa, 8, 8)),
            a = factor(a[aa]),
@@ -107,7 +104,10 @@ sim.out.long <- sim.out %>%
               id_cols = c(clust, n, B, vare, method, aa, a, EYa.true, id)) %>% 
   mutate(ci.lower = est - qnorm(0.975) * ste,
          ci.upper = est + qnorm(0.975) * ste,
-         ci.cov = EYa.true >= ci.lower & EYa.true <= ci.upper)
+         ci.cov = EYa.true >= ci.lower & EYa.true <= ci.upper,
+         bcci.lower = est - qnorm(0.975) * bcs,
+         bcci.upper = est + qnorm(0.975) * bcs,
+         bcci.cov = EYa.true >= bcci.lower & EYa.true <= bcci.upper)
 
 ```
 
@@ -116,10 +116,12 @@ We first check for simulations with errors.
 ```{r}
 
 # summarize proportion of missing data by setting
-sim.out.long %>% 
+ftc.dat <- sim.out.long %>% 
   filter(aa == 1) %>% 
   group_by(method, n, B, vare) %>% 
-  summarise(prop.error = mean(is.na(est))) %>% 
+  summarise(prop.error = mean(is.na(est)))
+
+ftc.dat %>% 
   filter(prop.error > 0) %>% 
   ungroup()
 
@@ -131,15 +133,11 @@ sim.out.long %>%
 n <- unique(sim.out$n)
 
 # make labels for plots
-method.labs <- c("Oracle GLM",
-                 "Oracle G-Formula",
-                 "Naive GLM",
+method.labs <- c("Oracle G-Formula",
                  "Naive G-Formula",
-                 "Corrected GLM",
-                 "Corrected G-Formula")
-names(method.labs) <- c("OL", "OG",
-                        "NL", "NG",
-                        "CL", "CG")
+                 "G-Formula CS")
+
+names(method.labs) <- c("OG", "NG", "CG")
 
 n.labs <- paste0("n = ", n)
 names(n.labs) <- n
@@ -156,11 +154,10 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 ```{r}
 
 # separate plots for each exposure value a, and for selected methods
-plot.by.a <- function(a., methods. = method.labs, title = T) {
+plot.by.a <- function(a., title = T) {
   
   plot <- sim.out.long %>% 
-    filter(a == a.,
-           method %in% methods.) %>% 
+    filter(a == a.) %>% 
   ggplot(aes(x = method,
              y = est,
              fill = method,
@@ -200,9 +197,9 @@ plot.by.a <- function(a., methods. = method.labs, title = T) {
 
 ### Plots of Simulation Results
 
-Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at exposure values $a = 0,1,2,3,4$. The corrected GLM method has several outliers that make it difficult to assess other estimators.
+Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at exposure values $a = 0,1,2,3,4$.
 
-```{r message = F, eval = F}
+```{r message = F, eval = T}
 
 plot.by.a(a. = 0)
 plot.by.a(a. = 1)
@@ -212,48 +209,91 @@ plot.by.a(a. = 4)
 
 ```
 
-Below are plots excluding the "GLM" method.
-
-```{r fig.width=6, fig.height=6}
-
-gfmla.methods <- c("Oracle G-Formula",
-                   "Naive G-Formula",
-                   "Corrected G-Formula")
-
-plot.by.a(a. = 0, methods. = gfmla.methods)
-plot.by.a(a. = 1, methods. = gfmla.methods)
-plot.by.a(a. = 2, methods. = gfmla.methods)
-plot.by.a(a. = 3, methods. = gfmla.methods)
-plot.by.a(a. = 4, methods. = gfmla.methods)
-
-```
-
 ### Tables of Simulation Results
 
-Below is a table for the primary estimand of interest ($a=3$). It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the 95% CI.
+Below is a table for the primary estimand of interest ($a=3$) and for $n \in \{800, 8000\}$. It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the 95% CI.
 
 ```{r}
 
 tbl <- sim.out.long %>% 
-  filter(method %in% c("Naive G-Formula",
-                       "Corrected G-Formula")) %>% 
+  filter(a == 3 &
+         n %in% c(800, 8000)) %>% 
   group_by(n, method, a) %>% 
   summarise(bias = 100 * mean(est - EYa.true, na.rm = T),
             emp.se = 100 * sd(est, na.rm = T),
             est.se = 100 * mean(ste, na.rm = T),
-            ci.cov = 100 * mean(ci.cov, na.rm = T))
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bcs, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T)) %>% 
+  left_join(ftc.dat) %>% 
+  mutate(ftc = 100 * prop.error) %>% 
+  dplyr::select(n, method, bias, emp.se,
+                est.se, ci.cov, bcest.se, bcci.cov, ftc)
 
 kbl <- tbl %>% 
   kable(format = "latex",
-        digits = 1,
-        align = c(rep("c", 3),
-                  rep("r", 4)),
+        digits = c(0, 0, 2, 2, 2, 1, 2, 1, 1),
+        align = c(rep("c", 2),
+                  rep("r", 7)),
         booktabs = TRUE,
-        linesep = c("", "", "", "\\addlinespace"),
+        linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
-        col.names = c("n", "Method", "a",
-                      "Bias", "ESE", "ASE", "CI Coverage")) %>%
+        col.names = c("n", "Method",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov",
+                      "%FTC")) %>%
+  add_header_above(c(" " = 4,
+                     "Crude" = 2,
+                     "BC" = 2,
+                     " " = 1)) %>% 
   kable_styling("striped") %>% 
   row_spec(row = 0, bold = TRUE)
 
+tbl
+
 ```
+
+Below is the same table with only $n = 400$.
+
+```{r}
+
+tbl2 <- sim.out.long %>% 
+  filter(a == 3 &
+         n %in% c(400)) %>% 
+  group_by(n, method, a) %>% 
+  summarise(bias = 100 * mean(est - EYa.true, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(ste, na.rm = T),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bcs, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T)) %>% 
+  left_join(ftc.dat) %>% 
+  mutate(ftc = 100 * prop.error) %>% 
+  dplyr::select(n, method, bias, emp.se,
+                est.se, ci.cov, bcest.se, bcci.cov, ftc)
+
+kbl2 <- tbl2 %>% 
+  kable(format = "latex",
+        digits = c(0, 0, 2, 2, 2, 1, 2, 1, 1),
+        align = c(rep("c", 2),
+                  rep("r", 7)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "Method",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov",
+                      "%FTC")) %>%
+  add_header_above(c(" " = 4,
+                     "Crude" = 2,
+                     "BC" = 2,
+                     " " = 1)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+tbl2
+
+```
+

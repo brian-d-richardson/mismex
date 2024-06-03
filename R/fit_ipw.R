@@ -21,7 +21,9 @@
 #'
 #' @export
 fit.ipw <- function(data, args,
-                    start = NULL, return.var = TRUE,
+                    start = NULL,
+                    return.var = TRUE,
+                    return.bcvar = TRUE,
                     coef.a.l = NULL, var.a.l = NULL) {
 
   ## unpack arguments
@@ -106,8 +108,33 @@ fit.ipw <- function(data, args,
       error = function(e) {message(e); evar})
   }
 
+  # bias corrected variance estimator
+  bc.evar = matrix(NA, len.msm + len.ps, len.msm + len.ps)
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = est,
+        n = n,
+        get.psi = function(x) {
+          coef.a.l <- matrix(x[len.msm + 1:(len.A*len.ps)],
+                             ncol = len.ps, byrow = F)
+          var.a.l <- exp(tail(x, len.A))
+          cbind(
+            get.psi.ipw(
+              data = data, g = x, args = args,
+              mean.a = mean.a, cov.a = cov.a,
+              return.sums = F),
+            get.psi.ps(
+              data = data, ps.formula = ps.formula,
+              coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F)) }),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
+  }
+
   return(list(est = est,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
 }
 
 
@@ -126,7 +153,9 @@ fit.ipw <- function(data, args,
 fit.ipw.mccs <- function(data, args,
                          cov.e, B, mc.seed = 123,
                          ps.wts = NULL,
-                         start = NULL, return.var = TRUE,
+                         start = NULL,
+                         return.var = TRUE,
+                         return.bcvar = TRUE,
                          mean.a = NULL, cov.a = NULL,
                          coef.a.l = NULL, var.a.l = NULL) {
 
@@ -234,7 +263,28 @@ fit.ipw.mccs <- function(data, args,
         error = function(e) {message(e); evar})
   }
 
+  # bias corrected variance estimator
+  bc.evar = matrix(NA, len.msm + len.ps, len.msm + len.ps)
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = est,
+        n = n,
+        get.psi = function(x) {
+          cbind(
+            get.psi.ipw.mccs(x = x, return.sums = F),
+            get.psi.ps(
+              data = data, ps.formula = ps.formula,
+              coef.a.l = matrix(x[len.msm + 1:(len.A*len.ps)],
+                                ncol = len.ps, byrow = F),
+              var.a.l = exp(tail(x, len.A)),
+              return.sums = F)) }),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
+  }
+
   return(list(est = est,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
 }
 
