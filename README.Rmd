@@ -146,6 +146,8 @@ ggplot(data = B.search,
 
 Based on these plots, the G-formula MCCS seems to stabilize around $B=30$. Using this value, we proceed with estimating the G-formula parameters. These include the parameters $\pmb{\beta} = (\beta_0, \dots, \beta_5)$ in the outcome model $Y|\pmb{L},A$, and the dose response curve $\textrm{E}\{Y(a)\}$ evaluated at four points (`r round(a, 1)`) in the support of $A$.
 
+The function `fit.gfmla.mccs` returns a list with three items: the parameter estimates, their estimated covariance matrix, and a bias-corrected covariance matrix estimate. Below a table is shown of estimates and (crude and bias-corrected) standard errors.
+
 ```{r}
 
 ## number of MC replicates
@@ -162,7 +164,8 @@ gfmla.res <- fit.gfmla.mccs(
   args = gfmla.args)
 
 cbind(est = round(gfmla.res$est, 2),
-      stde = round(sqrt(diag(gfmla.res$var)), 2))
+      stde = round(sqrt(diag(gfmla.res$var)), 2),
+      bc.stde = round(sqrt(diag(gfmla.res$bc.var)), 2))
 
 ```
 
@@ -188,7 +191,8 @@ ipw.res <- fit.ipw.mccs(
   args = ipw.args)
 
 cbind(est = round(ipw.res$est, 2),
-      stde = round(sqrt(diag(ipw.res$var)), 2))
+      stde = round(sqrt(diag(ipw.res$var)), 2),
+      bc.stde = round(sqrt(diag(ipw.res$bc.var)), 2))
 
 ```
 
@@ -215,7 +219,8 @@ dr.res <- fit.dr.mccs(
   args = dr.args)
 
 cbind(est = round(dr.res$est, 2),
-      stde = round(sqrt(diag(dr.res$var)), 2))
+      stde = round(sqrt(diag(dr.res$var)), 2),
+      bc.stde = round(sqrt(diag(dr.res$bc.var)), 2))
 
 ```
 
@@ -295,7 +300,8 @@ dr.cc.mccs <- fit.dr.mccs(data = datstar, args = args, a = a,
                           cov.e = cov.e, B = B, mc.seed = mc.seed)
 
 cbind(est = round(dr.cc.mccs$est, 2),
-      stde = round(sqrt(diag(dr.cc.mccs$var)), 2))
+      stde = round(sqrt(diag(dr.cc.mccs$var)), 2),
+      bc.stde = round(sqrt(diag(dr.cc.mccs$bc.var)), 2))
 
 ```
 

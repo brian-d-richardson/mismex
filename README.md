@@ -159,6 +159,11 @@ $\pmb{\beta} = (\beta_0, \dots, \beta_5)$ in the outcome model
 $Y|\pmb{L},A$, and the dose response curve $\textrm{E}\{Y(a)\}$
 evaluated at four points (-2.5, 0.3, 3, 5.8) in the support of $A$.
 
+The function `fit.gfmla.mccs` returns a list with three items: the
+parameter estimates, their estimated covariance matrix, and a
+bias-corrected covariance matrix estimate. Below a table is shown of
+estimates and (crude and bias-corrected) standard errors.
+
 ``` r
 ## number of MC replicates
 B <- 30
@@ -174,20 +179,21 @@ gfmla.res <- fit.gfmla.mccs(
   args = gfmla.args)
 
 cbind(est = round(gfmla.res$est, 2),
-      stde = round(sqrt(diag(gfmla.res$var)), 2))
+      stde = round(sqrt(diag(gfmla.res$var)), 2),
+      bc.stde = round(sqrt(diag(gfmla.res$bc.var)), 2))
 ```
 
-    ##         est stde
-    ## g.0    1.52 0.05
-    ## g.1    0.69 0.02
-    ## g.2    0.88 0.05
-    ## g.3   -0.58 0.03
-    ## g.4   -0.70 0.02
-    ## g.5    0.39 0.01
-    ## EYa.1 -0.48 0.06
-    ## EYa.2  1.57 0.02
-    ## EYa.3  3.62 0.03
-    ## EYa.4  5.67 0.07
+    ##         est stde bc.stde
+    ## g.0    1.52 0.05    0.05
+    ## g.1    0.69 0.02    0.02
+    ## g.2    0.88 0.05    0.05
+    ## g.3   -0.58 0.03    0.03
+    ## g.4   -0.70 0.02    0.02
+    ## g.5    0.39 0.01    0.01
+    ## EYa.1 -0.48 0.06    0.06
+    ## EYa.2  1.57 0.02    0.02
+    ## EYa.3  3.62 0.03    0.03
+    ## EYa.4  5.67 0.07    0.07
 
 ### IPW Estimation
 
@@ -215,16 +221,17 @@ ipw.res <- fit.ipw.mccs(
   args = ipw.args)
 
 cbind(est = round(ipw.res$est, 2),
-      stde = round(sqrt(diag(ipw.res$var)), 2))
+      stde = round(sqrt(diag(ipw.res$var)), 2),
+      bc.stde = round(sqrt(diag(ipw.res$bc.var)), 2))
 ```
 
-    ##                est stde
-    ## g.0           1.78 0.19
-    ## g.1           0.55 0.09
-    ## coef.a.l.1    2.06 0.05
-    ## coef.a.l.2    0.88 0.05
-    ## coef.a.l.3   -0.66 0.04
-    ## log.var.a.l1  0.13 0.04
+    ##                est stde bc.stde
+    ## g.0           1.78 0.19    0.21
+    ## g.1           0.55 0.09    0.09
+    ## coef.a.l.1    2.06 0.05    0.05
+    ## coef.a.l.2    0.88 0.05    0.05
+    ## coef.a.l.3   -0.66 0.04    0.04
+    ## log.var.a.l1  0.13 0.04    0.04
 
 ### Double Robust Estimation
 
@@ -250,24 +257,25 @@ dr.res <- fit.dr.mccs(
   args = dr.args)
 
 cbind(est = round(dr.res$est, 2),
-      stde = round(sqrt(diag(dr.res$var)), 2))
+      stde = round(sqrt(diag(dr.res$var)), 2),
+      bc.stde = round(sqrt(diag(dr.res$bc.var)), 2))
 ```
 
-    ##                est stde
-    ## g.0           1.51 0.05
-    ## g.1           0.70 0.02
-    ## g.2           0.89 0.05
-    ## g.3          -0.59 0.03
-    ## g.4          -0.72 0.02
-    ## g.5           0.40 0.02
-    ## coef.a.l.1    2.06 0.05
-    ## coef.a.l.2    0.88 0.05
-    ## coef.a.l.3   -0.66 0.04
-    ## log.var.a.l1  0.13 0.04
-    ## EYa.1        -0.52 0.07
-    ## EYa.2         1.56 0.02
-    ## EYa.3         3.64 0.03
-    ## EYa.4         5.72 0.07
+    ##                est stde bc.stde
+    ## g.0           1.51 0.05    0.05
+    ## g.1           0.70 0.02    0.02
+    ## g.2           0.89 0.05    0.05
+    ## g.3          -0.59 0.03    0.03
+    ## g.4          -0.72 0.02    0.02
+    ## g.5           0.40 0.02    0.02
+    ## coef.a.l.1    2.06 0.05    0.05
+    ## coef.a.l.2    0.88 0.05    0.05
+    ## coef.a.l.3   -0.66 0.04    0.04
+    ## log.var.a.l1  0.13 0.04    0.04
+    ## EYa.1        -0.52 0.07    0.07
+    ## EYa.2         1.56 0.02    0.02
+    ## EYa.3         3.64 0.03    0.03
+    ## EYa.4         5.72 0.07    0.07
 
 ### Case Cohort Sampling
 
@@ -356,27 +364,28 @@ dr.cc.mccs <- fit.dr.mccs(data = datstar, args = args, a = a,
                           cov.e = cov.e, B = B, mc.seed = mc.seed)
 
 cbind(est = round(dr.cc.mccs$est, 2),
-      stde = round(sqrt(diag(dr.cc.mccs$var)), 2))
+      stde = round(sqrt(diag(dr.cc.mccs$var)), 2),
+      bc.stde = round(sqrt(diag(dr.cc.mccs$bc.var)), 2))
 ```
 
-    ##                est stde
-    ## g.0           0.26 0.09
-    ## g.1           0.42 0.31
-    ## g.2           0.22 0.20
-    ## g.3          -0.01 0.40
-    ## g.4           0.53 0.19
-    ## g.5          -0.20 0.55
-    ## g.6          -0.10 0.63
-    ## g.7          -0.64 0.39
-    ## coef.a.l.1    0.02 0.05
-    ## coef.a.l.2    0.02 0.04
-    ## coef.a.l.3    0.17 0.04
-    ## coef.a.l.4    0.39 0.08
-    ## coef.a.l.5   -0.42 0.07
-    ## coef.a.l.6   -0.07 0.06
-    ## log.var.a.l1 -2.41 0.12
-    ## log.var.a.l2 -2.33 0.11
-    ## log.var.a.l3 -2.31 0.08
-    ## EYa.1         0.39 0.06
-    ## EYa.2         0.48 0.04
-    ## EYa.3         0.59 0.06
+    ##                est stde bc.stde
+    ## g.0           0.26 0.09    0.10
+    ## g.1           0.42 0.31    0.34
+    ## g.2           0.22 0.20    0.22
+    ## g.3          -0.01 0.40    0.44
+    ## g.4           0.53 0.19    0.22
+    ## g.5          -0.20 0.55    0.62
+    ## g.6          -0.10 0.63    0.71
+    ## g.7          -0.64 0.39    0.46
+    ## coef.a.l.1    0.02 0.05    0.05
+    ## coef.a.l.2    0.02 0.04    0.04
+    ## coef.a.l.3    0.17 0.04    0.04
+    ## coef.a.l.4    0.39 0.08    0.08
+    ## coef.a.l.5   -0.42 0.07    0.08
+    ## coef.a.l.6   -0.07 0.06    0.06
+    ## log.var.a.l1 -2.41 0.12    0.12
+    ## log.var.a.l2 -2.33 0.11    0.11
+    ## log.var.a.l3 -2.31 0.08    0.08
+    ## EYa.1         0.39 0.06    0.06
+    ## EYa.2         0.48 0.04    0.04
+    ## EYa.3         0.59 0.06    0.06
