@@ -3,6 +3,7 @@
 #' @inheritParams make.mccs
 #'
 #' @param n a positive integer, the sample size
+#' @param vare a non-negative number, measurement error variance
 #' @param seed a positive integer, random number seed set at start of simulation
 #'
 #' @return a data frame with the following columns

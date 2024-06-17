@@ -9,9 +9,13 @@ sim.dr.cc(n, vare, B, seed, pi.cc)
 \arguments{
 \item{n}{a positive integer, the sample size}
 
+\item{vare}{a non-negative number, the measurement error variance}
+
 \item{B}{a positive integer, the number of MC replicates}
 
 \item{seed}{a positive integer, random number seed set at start of simulation}
+
+\item{pi.cc}{a number in (0,1], the case-cohort sampling proportion}
 }
 \value{
 a named numeric vector with the following entries

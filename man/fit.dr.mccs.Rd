@@ -13,6 +13,7 @@ fit.dr.mccs(
   mc.seed = 123,
   start = NULL,
   return.var = TRUE,
+  return.bcvar = TRUE,
   mean.a = NULL,
   cov.a = NULL,
   coef.a.l = NULL,
@@ -47,6 +48,9 @@ fit.dr.mccs(
 \item{return.var}{an indicator for whether empirical sandwich variance
 estimator should be computed, default is TRUE}
 
+\item{return.bcvar}{an indicator for whether bias-corrected variance
+estimator should be computed, default is TRUE}
+
 \item{mean.a}{a numeric vector, the marginal mean of the exposure A}
 
 \item{cov.a}{a numeric matrix, the marginal covariance of the exposure A}
@@ -56,6 +60,8 @@ a list of arguments including
 \itemize{
 \item{\code{est}: root of estimating function}
 \item{\code{var}: estimated covariance matrix of estimator (if requested)}
+\item{\code{bc.var}: bias-corrected estimated covariance matrix of estimator
+(if requested)}
 }
 }
 \description{

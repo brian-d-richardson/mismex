@@ -23,7 +23,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(MASS)
-#setwd(dirname(getwd()))
+library(tictoc)
+setwd(dirname(getwd()))
 load_all()
 
 # define parameters -------------------------------------------------------
@@ -68,17 +69,22 @@ datstar$cc.wts <- dat0$cc.wts <- (1 - datstar$Y) * datstar$R / pi.hat + Y
 # estimate E{Y(a)} at grid of a -------------------------------------------
 
 # g-formula
+tic("naive G-formula")
 gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args)
+toc()
 
 # oracle g-formula
+tic("oracle G-formula")
 gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
                           start = gfmla.naive$est[1:length(g)])
+toc()
 
 # corrected g-formula
-#data = datstar; start = gfmla.naive$est[1:length(g)]
+tic("corrected G-formula")
 gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
                              cov.e = cov.e, B = B, mc.seed = mc.seed,
                              start = gfmla.naive$est[1:length(g)])
+toc()
 
 # format data for dose response curve plot --------------------------------
 

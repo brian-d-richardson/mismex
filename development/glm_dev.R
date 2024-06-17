@@ -21,6 +21,7 @@ library(pbapply)
 library(ggplot2)
 library(dplyr)
 library(MASS)
+library(tictoc)
 #setwd(dirname(getwd()))
 load_all()
 
@@ -50,21 +51,26 @@ colnames(A) <- colnames(Astar) <- c("A1", "A2")
 dat0 <- data.frame(Y, A, L1, L2)                            # oracle data
 datstar <- data.frame(Y, Astar, L1, L2)                     # mismeasured data
 
-
 data = datstar
 args = list(formula = formula, inv.link = inv.link, d.inv.link = d.inv.link)
 
 # fit GLM models ----------------------------------------------------------
 
 # naive GLM
+tic("naive GLM")
 glm.naive <- fit.glm(data = datstar, args = args)
+toc()
 
 # oracle GLM
+tic("oracle GLM")
 glm.oracle <- fit.glm(data = dat0, args = args, start = glm.naive$est)
+toc()
 
 # corrected GLM
+tic("corrected GLM")
 glm.mccs <- fit.glm.mccs(data = datstar, args = args, start = glm.naive$est,
                          cov.e = cov.e, B = B, mc.seed = mc.seed)
+toc()
 
 # compare estimates -------------------------------------------------------
 

@@ -4,7 +4,7 @@
 \alias{fit.glm}
 \title{Fit oracle GLM estimating equation}
 \usage{
-fit.glm(data, args, start = NULL, return.var = TRUE)
+fit.glm(data, args, start = NULL, return.var = TRUE, return.bcvar = TRUE)
 }
 \arguments{
 \item{data}{a data frame including columns
@@ -26,12 +26,17 @@ fit.glm(data, args, start = NULL, return.var = TRUE)
 
 \item{return.var}{an indicator for whether empirical sandwich variance
 estimator should be computed, default is TRUE}
+
+\item{return.bcvar}{an indicator for whether bias-corrected variance
+estimator should be computed, default is TRUE}
 }
 \value{
 a list of arguments including
 \itemize{
 \item{\code{est}: root of estimating function}
 \item{\code{var}: estimated covariance matrix of estimator (if requested)}
+\item{\code{bc.var}: bias-corrected estimated covariance matrix of estimator
+(if requested)}
 }
 }
 \description{

@@ -5,16 +5,21 @@
 #' @param start an optional numeric vector, starting parameter values
 #' @param return.var an indicator for whether empirical sandwich variance
 #' estimator should be computed, default is TRUE
+#' @param return.bcvar an indicator for whether bias-corrected variance
+#' estimator should be computed, default is TRUE
 #'
 #' @return a list of arguments including
 #' \itemize{
 #' \item{`est`: root of estimating function}
 #' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' \item{`bc.var`: bias-corrected estimated covariance matrix of estimator
+#' (if requested)}
 #' }
 #'
 #' @export
 fit.glm <- function(data, args,
-                    start = NULL, return.var = TRUE) {
+                    start = NULL,
+                    return.var = TRUE, return.bcvar = TRUE) {
 
   ## unpack arguments
   list2env(args, envir = environment())
@@ -62,8 +67,22 @@ fit.glm <- function(data, args,
       error = function(e) {message(e); matrix(NA, len.est, len.est)})
   }
 
+  # bias-corrected sandwich variance estimate if requested
+  bc.evar = matrix(NA, len.est, len.est)
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = root,
+        n = n,
+        get.psi = function(x) get.psi.glm(
+          data = data, g = x, args = args, return.sums = F)),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
+  }
+
   return(list(est = root,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
 }
 
 
@@ -76,12 +95,15 @@ fit.glm <- function(data, args,
 #' \itemize{
 #' \item{`est`: root of estimating function}
 #' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' \item{`bc.var`: bias-corrected estimated covariance matrix of estimator
+#' (if requested)}
 #' }
 #'
 #' @export
 fit.glm.mccs <- function(data, args,
                          cov.e, B, mc.seed,
-                         start = NULL, return.var = TRUE) {
+                         start = NULL,
+                         return.var = TRUE, return.bcvar = TRUE) {
 
   ## unpack arguments
   list2env(args, envir = environment())
@@ -139,6 +161,19 @@ fit.glm.mccs <- function(data, args,
       error = function(e) {message(e); evar})
   }
 
+  # bias-corrected sandwich variance estimate if requested
+  bc.evar = matrix(NA, len.est, len.est)
+  if (return.bcvar) {
+    bc.evar <- tryCatch(
+      expr = get.sand.est.bc(
+        ghat = root,
+        n = n,
+        get.psi = function(x) get.psi.glm.mccs(x, return.sums = F)),
+      warning = function(w) {message(w); bc.evar },
+      error = function(e) {message(e); bc.evar })
+  }
+
   return(list(est = root,
-              var = evar))
+              var = evar,
+              bc.var = bc.evar))
 }

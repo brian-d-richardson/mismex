@@ -9,6 +9,8 @@ sim.dr(n, vare, B, seed)
 \arguments{
 \item{n}{a positive integer, the sample size}
 
+\item{vare}{a non-negative number, measurement error variance}
+
 \item{B}{a positive integer, the number of MC replicates}
 
 \item{seed}{a positive integer, random number seed set at start of simulation}

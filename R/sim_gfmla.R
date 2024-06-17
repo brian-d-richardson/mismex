@@ -3,6 +3,8 @@
 #' @inheritParams sim.dr
 #' @inheritParams fit.gfmla
 #'
+#' @param vare a non-negative number, the measurement error variance
+#'
 #' @return a named numeric vector with the following entries
 #' \itemize{
 #' \item{n}

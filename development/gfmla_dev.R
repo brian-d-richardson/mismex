@@ -23,7 +23,7 @@ library(dplyr)
 library(tidyverse)
 library(MASS)
 library(tictoc)
-#setwd(dirname(getwd()))
+setwd(dirname(getwd()))
 load_all()
 
 # define parameters -------------------------------------------------------
@@ -82,13 +82,13 @@ if (run.search) {
     t() %>%
     as.data.frame()
 
-  write.csv(search.out, "dev_data/gfmla_res.csv", row.names = F)
+  write.csv(search.out, "development/dev_data/gfmla_res.csv", row.names = F)
 }
 
 # plot results ------------------------------------------------------------
 
 # load results
-search.out <- read.csv("dev_data/gfmla_res.csv")
+search.out <- read.csv("development/dev_data/gfmla_res.csv")
 search.out.long <- search.out %>%
   pivot_longer(cols = c(psi1, psi2, psi3, psi4, psi5, psi6, Time))
 
@@ -105,18 +105,23 @@ ggplot(data = search.out.long,
 # estimate E{Y(a)} at grid of a -------------------------------------------
 
 # g-formula
+tic("naive G-formula")
 gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args, return.bcvar = T)
+toc()
 
 # oracle g-formula
+tic("oracle G-formula")
 gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
                           start = gfmla.naive$est[1:length(g)],
                           return.bcvar = F)
+toc()
 
 # corrected g-formula
-#data = datstar; start = gfmla.naive$est[1:length(g)]
+tic("corrected G-formula")
 gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
                              cov.e = cov.e, B = B, mc.seed = mc.seed,
                              start = gfmla.naive$est[1:length(g)])
+toc()
 
 # format data for dose response curve plot --------------------------------
 

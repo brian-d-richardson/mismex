@@ -13,6 +13,7 @@ fit.ipw.mccs(
   ps.wts = NULL,
   start = NULL,
   return.var = TRUE,
+  return.bcvar = TRUE,
   mean.a = NULL,
   cov.a = NULL,
   coef.a.l = NULL,
@@ -47,6 +48,9 @@ fit.ipw.mccs(
 \item{return.var}{an indicator for whether empirical sandwich variance
 estimator should be computed, default is TRUE}
 
+\item{return.bcvar}{an indicator for whether bias-corrected variance
+estimator should be computed, default is TRUE}
+
 \item{mean.a}{an optional numeric vector, the marginal mean of the exposure
 A, computed if not specified}
 
@@ -64,6 +68,8 @@ a list of arguments including
 \itemize{
 \item{\code{est}: root of estimating function}
 \item{\code{var}: estimated covariance matrix of estimator (if requested)}
+\item{\code{bc.var}: bias-corrected estimated covariance matrix of estimator
+(if requested)}
 }
 }
 \description{

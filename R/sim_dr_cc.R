@@ -2,6 +2,8 @@
 #'
 #' @inheritParams sim.gfmla
 #'
+#' @param pi.cc a number in (0,1], the case-cohort sampling proportion
+#'
 #' @return a named numeric vector with the following entries
 #' \itemize{
 #' \item{n}

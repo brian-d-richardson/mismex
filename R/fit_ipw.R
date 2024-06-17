@@ -17,6 +17,8 @@
 #' \itemize{
 #' \item{`est`: root of estimating function}
 #' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' \item{`bc.var`: bias-corrected estimated covariance matrix of estimator
+#' (if requested)}
 #' }
 #'
 #' @export
@@ -147,6 +149,8 @@ fit.ipw <- function(data, args,
 #' \itemize{
 #' \item{`est`: root of estimating function}
 #' \item{`var`: estimated covariance matrix of estimator (if requested)}
+#' \item{`bc.var`: bias-corrected estimated covariance matrix of estimator
+#' (if requested)}
 #' }
 #'
 #' @export

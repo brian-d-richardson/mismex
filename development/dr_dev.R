@@ -24,7 +24,7 @@ library(dplyr)
 library(tidyverse)
 library(MASS)
 library(tictoc)
-#setwd(dirname(getwd()))
+setwd(dirname(getwd()))
 load_all()
 
 # define parameters -------------------------------------------------------
@@ -65,7 +65,7 @@ args <- list(formula = formula,                          # arguments for fitting
 B.grid <- seq(1, 100, by = 1)
 
 # store psi and computation time B (takes ~ 30 seconds)
-run.search <- F
+run.search <- T
 if (run.search) {
 
   search.out <- pbvapply(
@@ -90,12 +90,12 @@ if (run.search) {
     as.data.frame()
 
   # save results
-  write.csv(search.out, "simulation/sim_data/param_tuning/dr_res.csv", row.names = F)
+  write.csv(search.out, "development/dev_data/dr_res.csv", row.names = F)
 
 }
 
 # load results
-search.out <- read.csv("simulation/sim_data/param_tuning/dr_res.csv")
+search.out <- read.csv("development/dev_data/dr_res.csv")
 search.out.long <- search.out %>%
   pivot_longer(cols = c(psi1, psi2, psi3, psi4, psi5, psi6, Time))
 
@@ -112,14 +112,17 @@ ggplot(data = search.out.long,
 # PART II: estimate dose response curves with DR method -------------------
 
 # naive doubly robust
+tic("naive DR")
 dr.naive <- fit.dr(data = datstar, args = args, a = a)
+toc()
 
 # oracle doubly robust
+tic("oracle DR")
 dr.oracle <- fit.dr(data = dat0, args = args, a = a, start = dr.naive$est[1:6])
+toc()
 
 # corrected doubly robust
-#data = datstar; start = dr.naive$est[1:6]; return.var = TRUE; mean.a = NULL; cov.a = NULL; coef.a.l = NULL; var.a.l = NULL
-tic("mccs")
+tic("corrected DR")
 dr.mccs <- fit.dr.mccs(data = datstar, args = args, a = a,
                        cov.e = cov.e, B = B, mc.seed = mc.seed,
                        start = dr.naive$est[1:6])
