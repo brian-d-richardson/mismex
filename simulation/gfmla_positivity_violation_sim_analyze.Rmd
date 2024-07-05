@@ -137,9 +137,7 @@ method.labs <- c("Oracle G-Formula",
                  "Naive G-Formula",
                  "G-Formula CS")
 
-names(method.labs) <- c("OL", "OG",
-                        "NL", "NG",
-                        "CL", "CG")
+names(method.labs) <- c("OG", "NG", "CG")
 
 n.labs <- paste0("n = ", n)
 names(n.labs) <- n
@@ -218,8 +216,7 @@ Below is a table for the primary estimand of interest ($a=3$) and for $n \in \{8
 ```{r}
 
 tbl <- sim.out.long %>% 
-  filter(a == 3 &
-         n %in% c(400, 800, 8000)) %>% 
+  filter(a == 3) %>% 
   group_by(n, method, a) %>% 
   summarise(bias = 100 * mean(est - EYa.true, na.rm = T),
             emp.se = 100 * sd(est, na.rm = T),
@@ -230,25 +227,23 @@ tbl <- sim.out.long %>%
   left_join(ftc.dat) %>% 
   mutate(ftc = 100 * prop.error) %>% 
   dplyr::select(n, method, bias, emp.se,
-                est.se, ci.cov, bcest.se, bcci.cov, ftc)
+                est.se, ci.cov, bcest.se, bcci.cov)
 
 kbl <- tbl %>% 
   kable(format = "latex",
-        digits = c(0, 0, 2, 2, 2, 1, 2, 1, 1),
+        digits = c(0, 0, 1, 1, 1, 1, 1, 1),
         align = c(rep("c", 2),
-                  rep("r", 7)),
+                  rep("r", 6)),
         booktabs = TRUE,
         linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
         col.names = c("n", "Method",
                       "Bias", "ESE",
                       "ASE", "Cov",
-                      "ASE", "Cov",
-                      "%FTC")) %>%
+                      "ASE", "Cov")) %>%
   add_header_above(c(" " = 4,
-                     "Crude" = 2,
-                     "BC" = 2,
-                     " " = 1)) %>% 
+                     "UC" = 2,
+                     "BC" = 2)) %>% 
   kable_styling("striped") %>% 
   row_spec(row = 0, bold = TRUE)
 

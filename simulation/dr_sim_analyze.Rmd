@@ -167,7 +167,7 @@ make.plot(n. = 2000)
 
 ### Table of Simulation Results
 
-The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the crude and BC 95% CIs for the corrected estimators under the four model specification scenarios and a sample size $n=400$
+The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the UC and BC 95% CIs for the corrected estimators under the four model specification scenarios and a sample size $n=400$
 
 ```{r}
 
@@ -191,12 +191,12 @@ kbl <- tbl %>%
         linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
         digits = c(0, 0,
-                   2, 2, 2, 1, 2, 1),
+                   1, 1, 1, 1, 1, 1),
         col.names = c("Correct Specifications", "Method",
                       "Bias", "ESE", "ASE", "Cov", "ASE", "Cov"),
         caption = "Estimated MSM Slope") %>%
   add_header_above(c(" " = 4,
-                     "Crude" = 2,
+                     "UC" = 2,
                      "BC" = 2)) %>% 
   kable_styling("striped") %>% 
   row_spec(row = 0, bold = TRUE)
@@ -229,12 +229,12 @@ kbl2 <- tbl2 %>%
         linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
         digits = c(0, 0,
-                   2, 2, 2, 1, 2, 1),
+                   1, 1, 1, 1, 1, 1),
         col.names = c("Correct Specifications", "Method",
                       "Bias", "ESE", "ASE", "Cov", "ASE", "Cov"),
         caption = "Estimated MSM Slope") %>%
   add_header_above(c(" " = 4,
-                     "Crude" = 2,
+                     "UC" = 2,
                      "BC" = 2)) %>% 
   kable_styling("striped") %>% 
   row_spec(row = 0, bold = TRUE)

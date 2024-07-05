@@ -218,15 +218,15 @@ tbl <- sim.out.long %>%
          pi.cc = 100 * pi.cc,
          ftc = 100 * prop.error) %>% 
   dplyr::select(pi.cc, Param, bias, emp.se,
-                est.se, ci.cov, bcest.se, bcci.cov, ftc)
+                est.se, ci.cov, bcest.se, bcci.cov)
 
 
 kbl <- tbl %>% 
   kable(format = "latex",
         digits = c(0, 0,
-                   2, 1,
-                   2, 1,
-                   1),
+                   1, 1,
+                   1, 1,
+                   1, 1),
         align = c(rep("c", 3),
                   rep("r", 6)),
         booktabs = TRUE,
@@ -235,12 +235,10 @@ kbl <- tbl %>%
         col.names = c("Sub-cohort size", "Parameter",
                       "Bias", "ESE",
                       "ASE", "Cov",
-                      "ASE", "Cov",
-                      "FTC")) %>%
+                      "ASE", "Cov")) %>%
   add_header_above(c(" " = 4,
                      "Crude" = 2,
-                     "BC" = 2,
-                     " " = 1)) %>% 
+                     "BC" = 2)) %>% 
   kable_styling("striped") %>% 
   row_spec(row = 0, bold = TRUE)
 
