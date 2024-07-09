@@ -304,7 +304,9 @@ cbind(est = round(dr.cc.mccs$est, 2),
       bc.stde = round(sqrt(diag(dr.cc.mccs$bc.var)), 2))
 
 ```
+## Application to HVTN 505 Trial Data
 
+The application code uses publicly available files from the HVTN 505 trial. To get the data files (called at the top of “application_revised.R”), first go to Start Page: /HVTN Public Data/HVTN 505 (scharp.org). Next, navigate to the folder “correlates analysis” and download the tar.gz located there. After download, this can be installed locally by running “R CMD INSTALL HVTN505_2019-08-08.tar.gz” in the Terminal or by running ‘devtools::install_local("HVTN505_2019-4-25.tar.gz")’. This will include the necessary data object "dat.505.rda". Then navigate back to the parent folder (same url as before) and into the Fong et al. folder, where the other data file "primary505_for_sharing_upd.csv" can be downloaded directly.
 
 
 
