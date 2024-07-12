@@ -53,7 +53,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/dr_cc_data/v3/sd",
+          read.csv(paste0("sim_data/dr_cc_data/sd",
                           clust, ".csv")))
   })
 

@@ -11,7 +11,7 @@
 
 <meta name="author" content="Brian Richardson" />
 
-<meta name="date" content="2024-05-30" />
+<meta name="date" content="2024-07-12" />
 
 <title>MCCS DR Case-Cohort Simulation Results</title>
 
@@ -440,7 +440,7 @@ display: none;
 
 <h1 class="title toc-ignore">MCCS DR Case-Cohort Simulation Results</h1>
 <h4 class="author">Brian Richardson</h4>
-<h4 class="date">05/30/2024</h4>
+<h4 class="date">07/12/2024</h4>
 
 </div>
 
@@ -508,7 +508,7 @@ sim.out.list &lt;- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0(&quot;sim_data/dr_cc_data/v3/sd&quot;,
+          read.csv(paste0(&quot;sim_data/dr_cc_data/sd&quot;,
                           clust, &quot;.csv&quot;)))
   })
 
@@ -661,13 +661,16 @@ crude and bias-corrected 95% CIs corresponding to <span class="math inline">\(\t
          pi.cc = 100 * pi.cc,
          ftc = 100 * prop.error) %&gt;% 
   dplyr::select(pi.cc, Param, bias, emp.se,
-                est.se, ci.cov, bcest.se, bcci.cov, ftc)</code></pre>
+                est.se, ci.cov, bcest.se, bcci.cov)</code></pre>
 <pre><code>## `summarise()` has grouped output by &#39;pi.cc&#39;. You can override using the
 ## `.groups` argument.
 ## Joining with `by = join_by(pi.cc, param)`</code></pre>
 <pre class="r"><code>kbl &lt;- tbl %&gt;% 
   kable(format = &quot;latex&quot;,
-        digits = 1,
+        digits = c(0, 0,
+                   1, 1,
+                   1, 1,
+                   1, 1),
         align = c(rep(&quot;c&quot;, 3),
                   rep(&quot;r&quot;, 6)),
         booktabs = TRUE,
@@ -676,29 +679,27 @@ crude and bias-corrected 95% CIs corresponding to <span class="math inline">\(\t
         col.names = c(&quot;Sub-cohort size&quot;, &quot;Parameter&quot;,
                       &quot;Bias&quot;, &quot;ESE&quot;,
                       &quot;ASE&quot;, &quot;Cov&quot;,
-                      &quot;ASE&quot;, &quot;Cov&quot;,
-                      &quot;FTC&quot;)) %&gt;%
+                      &quot;ASE&quot;, &quot;Cov&quot;)) %&gt;%
   add_header_above(c(&quot; &quot; = 4,
                      &quot;Crude&quot; = 2,
-                     &quot;BC&quot; = 2,
-                     &quot; &quot; = 1)) %&gt;% 
+                     &quot;BC&quot; = 2)) %&gt;% 
   kable_styling(&quot;striped&quot;) %&gt;% 
   row_spec(row = 0, bold = TRUE)
 
 tbl</code></pre>
-<pre><code>## # A tibble: 9 × 9
+<pre><code>## # A tibble: 9 × 8
 ## # Groups:   pi.cc [3]
-##   pi.cc Param              bias emp.se est.se ci.cov bcest.se bcci.cov   ftc
-##   &lt;dbl&gt; &lt;chr&gt;             &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt; &lt;dbl&gt;
-## 1     5 &quot;$\\eta(\\ba_1)$&quot;  4.06  10.1   17.2    90.3    21.3      91.3   0.1
-## 2     5 &quot;$\\eta(\\ba_2)$&quot;  4.91   4.46   7.19   82.1     7.79     83.3   0.1
-## 3     5 &quot;$\\eta(\\ba_3)$&quot;  5.76   9.35  14.3    82.4    17.8      83.7   0.1
-## 4    10 &quot;$\\eta(\\ba_1)$&quot;  2.47   6.81  12.9    92.1    14.1      92.9   0  
-## 5    10 &quot;$\\eta(\\ba_2)$&quot;  2.86   3.92   9.23   87.3     9.99     87.9   0  
-## 6    10 &quot;$\\eta(\\ba_3)$&quot;  3.40   6.59   8.52   87.8     9.13     88.4   0.1
-## 7    25 &quot;$\\eta(\\ba_1)$&quot;  1.13   4.32   4.52   92.9     4.92     93.6   0.1
-## 8    25 &quot;$\\eta(\\ba_2)$&quot;  1.24   2.37   2.42   92.2     2.44     92.1   0.1
-## 9    25 &quot;$\\eta(\\ba_3)$&quot;  1.35   4.66   4.71   89.5     5.09     90.3   0.1</code></pre>
+##   pi.cc Param              bias emp.se est.se ci.cov bcest.se bcci.cov
+##   &lt;dbl&gt; &lt;chr&gt;             &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+## 1     5 &quot;$\\eta(\\ba_1)$&quot;  4.06  10.1   17.2    90.3    21.3      91.3
+## 2     5 &quot;$\\eta(\\ba_2)$&quot;  4.91   4.46   7.19   82.1     7.79     83.3
+## 3     5 &quot;$\\eta(\\ba_3)$&quot;  5.76   9.35  14.3    82.4    17.8      83.7
+## 4    10 &quot;$\\eta(\\ba_1)$&quot;  2.47   6.81  12.9    92.1    14.1      92.9
+## 5    10 &quot;$\\eta(\\ba_2)$&quot;  2.86   3.92   9.23   87.3     9.99     87.9
+## 6    10 &quot;$\\eta(\\ba_3)$&quot;  3.40   6.59   8.52   87.8     9.13     88.4
+## 7    25 &quot;$\\eta(\\ba_1)$&quot;  1.13   4.32   4.52   92.9     4.92     93.6
+## 8    25 &quot;$\\eta(\\ba_2)$&quot;  1.24   2.37   2.42   92.2     2.44     92.1
+## 9    25 &quot;$\\eta(\\ba_3)$&quot;  1.35   4.66   4.71   89.5     5.09     90.3</code></pre>
 </div>
 </div>
 

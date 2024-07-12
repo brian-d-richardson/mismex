@@ -11,7 +11,7 @@
 
 <meta name="author" content="Brian Richardson" />
 
-<meta name="date" content="2024-06-03" />
+<meta name="date" content="2024-07-12" />
 
 <title>MCCS IPW Simulation Results</title>
 
@@ -440,7 +440,7 @@ display: none;
 
 <h1 class="title toc-ignore">MCCS IPW Simulation Results</h1>
 <h4 class="author">Brian Richardson</h4>
-<h4 class="date">06/03/2024</h4>
+<h4 class="date">07/12/2024</h4>
 
 </div>
 
@@ -527,7 +527,7 @@ sim.out.list &lt;- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0(&quot;sim_data/ipw_data/v3/sd&quot;,
+          read.csv(paste0(&quot;sim_data/ipw_data/sd&quot;,
                           clust, &quot;.csv&quot;)))
   })
 
@@ -664,9 +664,9 @@ corrected methods, and for <span class="math inline">\(n \in \{800,
 <pre class="r"><code>kbl &lt;- tbl %&gt;% 
   kable(format = &quot;latex&quot;,
         digits = c(0, 0, 0,
-                   2, 2,
-                   2, 1,
-                   2, 1),
+                   1, 1,
+                   1, 1,
+                   1, 1),
         align = c(rep(&quot;c&quot;, 3),
                   rep(&quot;r&quot;, 4)),
         booktabs = TRUE,
@@ -677,7 +677,7 @@ corrected methods, and for <span class="math inline">\(n \in \{800,
                       &quot;ASE&quot;, &quot;Cov&quot;,
                       &quot;ASE&quot;, &quot;Cov&quot;)) %&gt;%
   add_header_above(c(&quot; &quot; = 5,
-                     &quot;Crude&quot; = 2,
+                     &quot;UC&quot; = 2,
                      &quot;BC&quot; = 2)) %&gt;% 
   kable_styling(&quot;striped&quot;) %&gt;% 
   row_spec(row = 0, bold = TRUE)
@@ -714,9 +714,9 @@ tbl</code></pre>
 <pre class="r"><code>kbl2 &lt;- tbl2 %&gt;% 
   kable(format = &quot;latex&quot;,
         digits = c(0, 0, 0,
-                   2, 2,
-                   2, 1,
-                   2, 1),
+                   1, 1,
+                   1, 1,
+                   1, 1),
         align = c(rep(&quot;c&quot;, 3),
                   rep(&quot;r&quot;, 4)),
         booktabs = TRUE,
@@ -727,7 +727,7 @@ tbl</code></pre>
                       &quot;ASE&quot;, &quot;Cov&quot;,
                       &quot;ASE&quot;, &quot;Cov&quot;)) %&gt;%
   add_header_above(c(&quot; &quot; = 4,
-                     &quot;Crude&quot; = 2,
+                     &quot;UC&quot; = 2,
                      &quot;BC&quot; = 2)) %&gt;% 
   kable_styling(&quot;striped&quot;) %&gt;% 
   row_spec(row = 0, bold = TRUE)

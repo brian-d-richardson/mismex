@@ -18,17 +18,17 @@ library(MASS)
 library(mvtnorm)
 library(tidyr)
 library(devtools)
-#setwd(dirname(getwd()))
+setwd(dirname(getwd()))
 load_all()
 
 # simulation parameters ---------------------------------------------------
 
 # baseline seed (specific to cluster)
-args <- 1#commandArgs(TRUE)
+args <- commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
-n.sim <- 1
+n.sim <- 100
 
 # varied parameters
 n <- 800                          # sample size

@@ -67,7 +67,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/dr_data/v3/sd",
+          read.csv(paste0("sim_data/dr_data/sd",
                           clust, ".csv")))
   })
 
@@ -243,35 +243,3 @@ tbl2
 
 ```
 
-Below is the same table with $n = 400$.
-
-```{r}
-
-tbl3 <- sim.out %>% 
-  filter(type == "MCCS" &
-           n == 400) %>% 
-  mutate(Estimator = factor(paste0(gsub("Doubly Robust", "DR", method),
-                                   " CS"),
-                            levels = c("G-Formula CS",
-                                       "IPW CS",
-                                       "DR CS"))) %>% 
-  group_by(spec, Estimator) %>% 
-  summarise(bias = 100 * mean(est - g, na.rm = T),
-            emp.se = 100 * sd(est, na.rm = T),
-            est.se = 100 * mean(se, na.rm = T),
-            ci.cov = 100 * mean(ci.cov, na.rm = T))
-
-kbl3 <- tbl3 %>% 
-  kable(format = "latex",
-        digits = 1,
-        align = c(rep("c", 2),
-                  rep("r", 4)),
-        booktabs = TRUE,
-        linesep = c("", "", "\\addlinespace\\hline"),
-        escape = FALSE,
-        col.names = c("Correct Specifications", "Estimator",
-                      "Bias", "ESE", "ASE", "Cov")) %>%
-  kable_styling("striped") %>% 
-  row_spec(row = 0, bold = TRUE)
-
-```

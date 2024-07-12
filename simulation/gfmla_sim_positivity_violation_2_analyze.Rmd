@@ -87,7 +87,7 @@ sim.out.long <- sim.out %>%
                            levels = c("OG", "NG", "CG"),
                            labels = c("Oracle G-Formula",
                                       "Naive G-Formula",
-                                      "Corrected G-Formula")),
+                                      "G-Formula CS")),
            aa = as.numeric(gsub("[.]", "", substr(method.aa, 4, 5))),
            a = a[aa],
            EYa.true = EYa.true[aa]) %>% 

@@ -23,7 +23,7 @@ load_all()
 # simulation parameters ---------------------------------------------------
 
 # baseline seed (specific to cluster)
-args <- 1#commandArgs(TRUE)
+args <- 0#commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 n.sim <- 1          # number of sims per cluster
@@ -31,8 +31,8 @@ a <- 0:4            # exposures at which to estimate E{Y(a)}
 
 # varied parameters
 n <- 800#c(800, 8000)                 # sample size
-B <- 2                           # number of MC replicates
-vare <- 0.0025                # measurement error variance for A1, A2
+B <- 80                           # number of MC replicates
+vare <- 0.25                # measurement error variance for A1, A2
 
 # run simulations ---------------------------------------------------------
 

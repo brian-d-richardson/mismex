@@ -14,11 +14,11 @@ set.seed(1234)
 #########################################################################
 
 # Build application data set
-load("HVTN505/data/dat.505.rda")
+load("/Users/bryanblette/Downloads/HVTN505/data/dat.505.rda")
 
 assays <- subset(var.505, assay %in% c("fcrR2a", "fcrR3a", "phago"))
 
-primarydat <- read.csv("primary505_for_sharing_upd.csv")
+primarydat <- read.csv("/Users/bryanblette/Downloads/primary505_for_sharing_upd.csv")
 primarydat$ptid <- primarydat$pub_id
 
 fulldat <- merge(dat.505, primarydat, by = "ptid", all = T)
@@ -412,8 +412,20 @@ latdat_sens <- data.frame(vals = c(rep(m1vals, 4),
                                   rep("RII", 4*length(m2vals))))
 latdat_sens$Risk_upp[latdat_sens$Risk_upp > 1] <- 1
 
-# New facet label names for Exposure variable
+# Version of plot with both ADCP and RII results
 ggplot(latdat_sens, aes(x = vals, y = Risk, ymin = Risk_low, ymax = Risk_upp)) +
+  geom_line() +
+  facet_grid(ME ~ Exposure, scales = "free",
+             labeller = label_bquote(sigma[me]^2 == .(ME) * sigma^2)) +
+  #labeller = labeller(ME = me.labs, Exposure = exp.labs)) +
+  geom_ribbon(alpha = 0.3) +
+  xlab("Exposure values") + ylab("HIV risk") +
+  ylim(c(0, 1)) +
+  theme_bw()
+
+# Version of plot with just RII results
+ggplot(latdat_sens[latdat_sens$Exposure == "RII", ],
+       aes(x = vals, y = Risk, ymin = Risk_low, ymax = Risk_upp)) +
   geom_line() +
   facet_grid(ME ~ Exposure, scales = "free",
              labeller = label_bquote(sigma[me]^2 == .(ME) * sigma^2)) +
