@@ -44,7 +44,7 @@ fit.glm <- function(data, args,
     start <- rep(0, len.est)
   }
 
-  ## solve oracle IPW equation
+  ## solve oracle equation
   root <- tryCatch(
     expr = rootSolve::multiroot(
       f = function(x) get.psi.glm(

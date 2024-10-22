@@ -39,7 +39,8 @@ fit.gfmla <- function(data, args, a,
   L <- data[, grepl("L", colnames(data))]       # covariates
 
   # fit outcome model
-  root <- fit.glm(data = data, args = args, return.var = F)$est
+  root <- fit.glm(data = data, args = args,
+                  return.var = F, return.bcvar = F)$est
 
   # estimate E{Y(a)} for each supplied a value
   EYa <- vapply(X = 1:len.a,

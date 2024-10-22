@@ -224,6 +224,70 @@ cbind(est = round(dr.res$est, 2),
 
 ```
 
+### Nonlinear Marginal Structural Model
+
+Suppose the data come arise from a nonlinear outcome model. In particular, we generate:
+
+* single confounder $L_1 \sim U(0,1)$,
+* univariate continuous exposure $A$ with $A|L \sim N(L,)$,
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.09)$,
+* normal outcome $Y$ with $Y|A,L \sim N(0.25A + 0.5A^2 - 0.5A^3 + L, 0.16)$.
+
+This data generating process leads to a mean potential outcome at $a$ of $\textrm{E}\{Y(a)\} = 0.5 + 0.25a + 0.5a^2 - 0.5a^3$.
+
+These data are generated and plotted below.
+
+```{r}
+
+# simulate data
+inv.link <- inv.ident                           # inverse link
+d.inv.link <- d.inv.ident                       # deriv of inv link
+g <- c(0, 0.25, 0.5, -0.5, 1)                   # outcome model parameters
+formula <- "~A + I(A^2) + I(A^3) + L"           # outcome model formula
+args <- list(formula = formula,                 # model fitting arguments
+             inv.link = inv.link,
+             d.inv.link = d.inv.link)
+set.seed(seed)
+L <- runif(n)                                                  # confounder
+A <- rnorm(n, L, sqrt(0.25))
+EY <- inv.link(model.matrix(as.formula(formula)) %*% g)        # mean of outcome
+Y <- rnorm(n, EY, 0.16)                                          # outcome
+Astar <- A + rnorm(n, 0, sqrt(cov.e))                          # mismeasured A
+dat0 <- data.frame(Y, A, L)                 # oracle data
+datstar <- data.frame(Y, Astar, L)          # mismeasured data
+colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L")
+a <- seq(-1, 2, length = 10)                # grid of exposure values
+
+# plot data
+ggplot(NULL, aes(x = A, y = Y)) + 
+  geom_point() +
+  ggtitle("Cubic MSM Data",
+          subtitle = "Using True Exposure Values")
+
+ggplot(NULL, aes(x = Astar, y = Y)) + 
+  geom_point() +
+  ggtitle("Cubic MSM Data",
+          subtitle = "Using Measured Exposure Values")
+
+```
+
+The dose response curve is then estimated below using the g-formula MCCS method.
+
+```{r}
+
+## G-formula for cubic MSM
+gfmla.mccs.cubic <- fit.gfmla.mccs(data = datstar, a = a,
+                                   args = args, cov.e = cov.e,
+                                   B = B, mc.seed = mc.seed)
+
+cbind(est = round(gfmla.mccs.cubic$est, 2),
+      stde = round(sqrt(diag(gfmla.mccs.cubic$var)), 2),
+      bc.stde = round(sqrt(diag(gfmla.mccs.cubic$bc.var)), 2))
+  
+
+```
+
+
 ### Case Cohort Sampling
 
 Consider a new data generating process with a binary outcome and case cohort sampling:
@@ -304,6 +368,7 @@ cbind(est = round(dr.cc.mccs$est, 2),
       bc.stde = round(sqrt(diag(dr.cc.mccs$bc.var)), 2))
 
 ```
+
 ## Application to HVTN 505 Trial Data
 
 The application code uses publicly available files from the HVTN 505 trial. To get the data files (called at the top of “application_revised.R”), first go to Start Page: /HVTN Public Data/HVTN 505 (scharp.org). Next, navigate to the folder “correlates analysis” and download the tar.gz located there. After download, this can be installed locally by running “R CMD INSTALL HVTN505_2019-08-08.tar.gz” in the Terminal or by running ‘devtools::install_local("HVTN505_2019-4-25.tar.gz")’. This will include the necessary data object "dat.505.rda". Then navigate back to the parent folder (same url as before) and into the Fong et al. folder, where the other data file "primary505_for_sharing_upd.csv" can be downloaded directly.

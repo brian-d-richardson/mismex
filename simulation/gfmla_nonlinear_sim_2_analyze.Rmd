@@ -1,0 +1,150 @@
+---
+title: "MCCS G-Formula Nonlinear Simulation 2 Results"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(devtools)
+load_all()
+
+```
+
+The goal of this program is to evaluate the Monte Carlo corrected score G-formula (MCCS G-FMLA) estimator in the presence of confounding and measurement error and with a nonlinear outcome model.
+
+## Setup
+
+Consider the following setup:
+
+* single confounder $L_1 \sim U(0,1)$,
+* univariate continuous exposure $A$ with $A|L \sim N(L,)$,
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.09)$,
+* normal outcome $Y$ with $Y|A,L \sim N(0.25A + 0.5A^2 - 0.5A^3 + L, 0.16)$.
+
+This data generating process leads to a mean potential outcome at $a$ of $\textrm{E}\{Y(a)\} = 0.5 + 0.25a + 0.5a^2 - 0.5a^3$.
+
+The estimand of interest in these simulations is the dose response curve $\{\textrm{E}[Y(a)] : a \in \mathcal{A}\}$.
+
+## Methods
+
+In these simulations, we compare three methods:
+
+4) Naive G-Formula
+5) Corrected GLM
+6) Corrected G-Formula
+
+The oracle method uses the true exposure values $A$, which are not observed in practice. The naive method treats $A^*$ as $A$, assuming there is no measurement error. The corrected method uses the Monte-Carlo corrected score versions of the estimating functions, which account for measurement error.
+
+## Results
+
+We first check for simulations with errors.
+
+```{r}
+
+# load simulation results from each of 10 clusters
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/gfmla_nonlinear_2_data/sd",
+                          clust, ".csv")))
+  })
+
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list)
+
+# true estimands
+g <- c(0, 0.25, 0.5, -0.5, 1)          # outcome model parameters
+a <- seq(-1, 2, length = 20)           # exposure value of interest
+EYa.true <- g[1] + 0.5*g[5] + a*g[2] + a^2*g[3] + a^3*g[4]
+
+# number of sims per setting
+n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare))
+
+# make long data frame
+sim.out.long <- sim.out %>% 
+  dplyr::select(!starts_with("a")) %>% 
+  pivot_longer(cols = starts_with("OG") | starts_with("NG") | starts_with("CG"), 
+               names_to = "method.aa",
+               values_to = "val") %>% 
+    mutate(method = factor(substr(method.aa, 1, 2),
+                           levels = c("OG", "NG", "CG"),
+                           labels = c("Oracle G-Formula",
+                                      "Naive G-Formula",
+                                      "G-Formula CS")),
+           aa = as.numeric(gsub("[.]", "", substr(method.aa, 4, 5))),
+           a = a[aa],
+           EYa.true = EYa.true[aa]) %>% 
+  dplyr::select(-method.aa)
+
+# make summary data frame
+sim.out.summary <- sim.out.long %>% 
+  group_by(n, vare, B, method, a) %>% 
+  summarise(bias = mean(val - EYa.true),
+            se = sd(val) / sqrt(n.rep),
+            bias.lower = bias - qnorm(0.975) * se,
+            bias.upper = bias + qnorm(0.975) * se)
+
+```
+
+We first check for simulations with errors.
+
+```{r}
+
+# summarize proportion of missing data by setting
+sim.out.long %>% 
+  filter(aa == 1) %>% 
+  group_by(method, n, B, vare) %>% 
+  summarise(prop.error = mean(is.na(val))) %>% 
+  filter(prop.error > 0) %>% 
+  ungroup()
+
+```
+
+### Plots of Simulation Results
+
+Below is a plot of bias in estimated $\textrm{E}\{Y(a)\}$ over a grid of exposure values.
+
+```{r message = F}
+
+p <- sim.out.summary %>% 
+  ggplot(
+    aes(x = a,
+        y = bias,
+        ymin = bias.lower,
+        ymax = bias.upper)) +
+  geom_point() +
+  geom_line() +
+  facet_grid(n ~ method,
+             labeller = labeller(n = function(x) paste0("n = ", x))) +
+  theme_bw() +
+  theme(legend.position = c(0.2, 0.3)) +
+  labs(color = "Method",
+       shape = "Method",
+       fill = "Method",
+       y = "Bias")
+
+p
+
+```
+
+```{r}
+
+# save plot
+ggsave("sim_figures/gfmla_nonlinear_sim_plot.png",
+       width = 6,
+       height = 2.5,
+       dpi = 300)
+
+```
+

@@ -1,0 +1,105 @@
+#' run one G-formula nonlinear model 2 simulation
+#'
+#' @inheritParams sim.dr
+#' @inheritParams fit.gfmla
+#'
+#' @param vare a non-negative number, the measurement error variance
+#'
+#' @return a named numeric vector with the following entries
+#' \itemize{
+#' \item{n}
+#' \item{vare}
+#' \item{B}
+#' \item{seed}
+#' \item{a1, ..., ak}
+#' \item{est.OL: oracle logistic regression estinates}
+#' \item{est.NL: naive logistic regression estinates}
+#' \item{est.CL: corrected logistic regression estinates}
+#' \item{est.OG: oracle g-formula estinates}
+#' \item{est.NG: naive g-formula estinates}
+#' \item{est.CG: corrected g-formula estinates}
+#' \item{ste.OL: oracle linear regression standard errors}
+#' \item{ste.NL: naive linear regression standard errors}
+#' \item{ste.CL: corrected linear regression standard errors}
+#' \item{ste.OG: oracle g-formula standard errors}
+#' \item{ste.NG: naive g-formula standard errors}
+#' \item{ste.CG: corrected g-formula standard errors}
+#' }
+#'
+#' @export
+sim.gfmla.nonlinear.2 <- function(n,
+                                  a,
+                                  vare,
+                                  B,
+                                  seed) {
+
+  ## for troubleshooting
+  #library(MASS); library(devtools); load_all()
+  #n = 800; a = 3; vare = 0.25; B = 80; seed = 1;
+  #n = 800; a = 0:4; vare = 0.0025; B = 2; seed = 1;
+
+  cov.e <- vare                                   # var(epsilon)
+  mc.seed <- 123                                  # MC seed
+  inv.link <- inv.ident                           # inverse link
+  d.inv.link <- d.inv.ident                       # deriv of inv link
+  g <- c(0, 0.25, 0.5, -0.5, 1)                   # outcome model parameters
+  formula <- "~A + I(A^2) + I(A^3) + L"           # outcome model formula
+  args <- list(formula = formula,                 # model fitting arguments
+               inv.link = inv.link,
+               d.inv.link = d.inv.link)
+
+  # according to DGP #1 in Blette submission
+  set.seed(seed)
+  L <- runif(n)                                                  # confounder
+  A <- rnorm(n, L, sqrt(0.25))
+  EY <- inv.link(model.matrix(as.formula(formula)) %*% g)        # mean of outcome
+  Y <- rnorm(n, EY, 0.16)                                          # outcome
+  Astar <- A + rnorm(n, 0, sqrt(cov.e))                          # mismeasured A
+  dat0 <- data.frame(Y, A, L)                 # oracle data
+  datstar <- data.frame(Y, Astar, L)          # mismeasured data
+  colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L")
+
+  ## fit g-formula models
+
+  # estimate E{Y(a)} at grid of a -------------------------------------------
+
+  # g-formula
+  gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args,
+                           return.var = F, return.bcvar = F)
+
+  # oracle g-formula
+  gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
+                            start = gfmla.naive$est[1:length(g)],
+                            return.var = F, return.bcvar = F)
+
+  # corrected g-formula
+  gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
+                               cov.e = cov.e, B = B, mc.seed = mc.seed,
+                               start = gfmla.naive$est[1:length(g)],
+                               return.var = F, return.bcvar = F)
+
+  ## extract estimated E{Y(a)}
+
+  # (iv) oracle g-formula
+  est.OG <- tail(gfmla.oracle$est, length(a))
+
+  # (v) naive g-formula
+  est.NG <- tail(gfmla.naive$est, length(a))
+
+  # (vi) corrected g-formula
+  est.CG <- tail(gfmla.mccs$est, length(a))
+
+  # combine results: estimates and std errors for 4 parameters
+  ret <- c(n, vare, B, seed, a,
+           est.OG, est.NG, est.CG)
+
+  names(ret) <- c(
+    "n", "vare", "B", "seed",
+    paste0("a", 1:length(a)),
+    apply(tidyr::expand_grid(
+      c("OG", "NG", "CG"),
+      1:length(a)),
+      1, paste, collapse="."))
+
+  return(ret)
+}
