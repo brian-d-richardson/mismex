@@ -277,6 +277,92 @@ cbind(est = round(dr.res$est, 2),
     ## EYa.3         3.64 0.03    0.03
     ## EYa.4         5.72 0.07    0.07
 
+### Nonlinear Marginal Structural Model
+
+Suppose the data come arise from a nonlinear outcome model. In
+particular, we generate:
+
+- single confounder $L_1 \sim U(0,1)$,
+- univariate continuous exposure $A$ with $A|L \sim N(L,)$,
+- mismeasured exposure $A^* = A + \epsilon$, where
+  $\epsilon \sim N(0, 0.09)$,
+- normal outcome $Y$ with
+  $Y|A,L \sim N(0.25A + 0.5A^2 - 0.5A^3 + L, 0.16)$.
+
+This data generating process leads to a mean potential outcome at $a$ of
+$\textrm{E}\{Y(a)\} = 0.5 + 0.25a + 0.5a^2 - 0.5a^3$.
+
+These data are generated and plotted below.
+
+``` r
+# simulate data
+inv.link <- inv.ident                           # inverse link
+d.inv.link <- d.inv.ident                       # deriv of inv link
+g <- c(0, 0.25, 0.5, -0.5, 1)                   # outcome model parameters
+formula <- "~A + I(A^2) + I(A^3) + L"           # outcome model formula
+args <- list(formula = formula,                 # model fitting arguments
+             inv.link = inv.link,
+             d.inv.link = d.inv.link)
+set.seed(seed)
+L <- runif(n)                                                  # confounder
+A <- rnorm(n, L, sqrt(0.25))
+EY <- inv.link(model.matrix(as.formula(formula)) %*% g)        # mean of outcome
+Y <- rnorm(n, EY, 0.16)                                          # outcome
+Astar <- A + rnorm(n, 0, sqrt(cov.e))                          # mismeasured A
+dat0 <- data.frame(Y, A, L)                 # oracle data
+datstar <- data.frame(Y, Astar, L)          # mismeasured data
+colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L")
+a <- seq(-1, 2, length = 10)                # grid of exposure values
+
+# plot data
+ggplot(NULL, aes(x = A, y = Y)) + 
+  geom_point() +
+  ggtitle("Cubic MSM Data",
+          subtitle = "Using True Exposure Values")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+ggplot(NULL, aes(x = Astar, y = Y)) + 
+  geom_point() +
+  ggtitle("Cubic MSM Data",
+          subtitle = "Using Measured Exposure Values")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+
+The dose response curve is then estimated below using the g-formula MCCS
+method.
+
+``` r
+## G-formula for cubic MSM
+gfmla.mccs.cubic <- fit.gfmla.mccs(data = datstar, a = a,
+                                   args = args, cov.e = cov.e,
+                                   B = B, mc.seed = mc.seed)
+
+cbind(est = round(gfmla.mccs.cubic$est, 2),
+      stde = round(sqrt(diag(gfmla.mccs.cubic$var)), 2),
+      bc.stde = round(sqrt(diag(gfmla.mccs.cubic$bc.var)), 2))
+```
+
+    ##          est stde bc.stde
+    ## g.0    -0.38 0.42    0.99
+    ## g.1     0.52 0.38    0.78
+    ## g.2     2.19 1.86    4.27
+    ## g.3    -1.80 1.38    3.19
+    ## g.4     1.09 0.12    0.14
+    ## EYa.1   3.63 2.59    5.80
+    ## EYa.2   1.32 0.70    1.44
+    ## EYa.3   0.29 0.25    0.60
+    ## EYa.4   0.15 0.39    0.93
+    ## EYa.5   0.50 0.16    0.34
+    ## EYa.6   0.94 0.23    0.51
+    ## EYa.7   1.06 0.37    0.88
+    ## EYa.8   0.47 0.16    0.14
+    ## EYa.9  -1.24 1.24    2.65
+    ## EYa.10 -4.47 3.55    7.96
+
 ### Case Cohort Sampling
 
 Consider a new data generating process with a binary outcome and case
@@ -371,9 +457,9 @@ cbind(est = round(dr.cc.mccs$est, 2),
     ##                est stde bc.stde
     ## g.0           0.26 0.09    0.10
     ## g.1           0.42 0.31    0.34
-    ## g.2           0.22 0.20    0.22
-    ## g.3          -0.01 0.40    0.44
-    ## g.4           0.53 0.19    0.22
+    ## g.2          -0.01 0.40    0.44
+    ## g.3           0.53 0.19    0.22
+    ## g.4           0.22 0.20    0.22
     ## g.5          -0.20 0.55    0.62
     ## g.6          -0.10 0.63    0.71
     ## g.7          -0.64 0.39    0.46
