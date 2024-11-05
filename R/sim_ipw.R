@@ -80,6 +80,30 @@ sim.ipw <- function(n,
                    inv.link = inv.link,
                    d.inv.link = d.inv.link)
 
+  ## estimate E(A | Astar) for regression calibration
+
+  # estimate means and covariances
+  E.A <- colMeans(datstar[,c("A1","A2","A3")])            # E(A)                          # E(A)
+  E.L <- mean(datstar$L)                                  # E(L)
+  Sigma.AA <- cov(datstar[,c("A1","A2","A3")]) - cov.e    # Cov(A)
+  Sigma.LA <- cov(datstar[,c("A1","A2","A3")], datstar$L) # Cov(A, L)
+  Sigma.LL <- var(datstar$L)                              # Cov(L)
+
+  # estimate E(A | Astar, L)
+  E.A.AstarL <- E.A + t(
+    cbind(Sigma.AA, Sigma.LA) %*%
+      solve(rbind(cbind(Sigma.AA + cov.e, Sigma.LA),
+                  cbind(t(Sigma.LA), Sigma.LL))) %*%
+      t(as.matrix(datstar[,c("A1", "A2", "A3", "L")] -
+                  do.call(rbind, replicate(n, c(E.A, E.L), simplify = F)))))
+
+  # create data set for regression calibration
+  datrc <- data.frame(Y,
+                      A1 = E.A.AstarL[,1],
+                      A2 = E.A.AstarL[,2],
+                      A3 = E.A.AstarL[,3],
+                      L)
+
   ## estimate MSM parameters
 
   # (i) naive IPW estimator
@@ -88,6 +112,11 @@ sim.ipw <- function(n,
 
   # (ii) oracle IPW estimator
   res.OI <- fit.ipw(data = dat0,
+                    args = args.ipw,
+                    start = res.NI$est[1:4])
+
+  # (iii) regression calibration IPW estimator
+  res.RI <- fit.ipw(data = datrc,
                     args = args.ipw,
                     start = res.NI$est[1:4])
 
@@ -102,10 +131,13 @@ sim.ipw <- function(n,
   # combine results: estimates and std errors for 4 parameters
   ret <- c(
     n, vare, B, seed,
-    res.OI$est[1:4], res.NI$est[1:4], res.CI$est[1:4],
+    res.OI$est[1:4], res.NI$est[1:4],
+    res.RI$est[1:4], res.CI$est[1:4],
     sqrt(c(
-    diag(res.OI$var)[1:4], diag(res.NI$var)[1:4], diag(res.CI$var)[1:4],
-    diag(res.OI$bc.var)[1:4], diag(res.NI$bc.var)[1:4], diag(res.CI$bc.var)[1:4]
+    diag(res.OI$var)[1:4], diag(res.NI$var)[1:4],
+    diag(res.RI$var)[1:4], diag(res.CI$var)[1:4],
+    diag(res.OI$bc.var)[1:4], diag(res.NI$bc.var)[1:4],
+    diag(res.RI$bc.var)[1:4], diag(res.CI$bc.var)[1:4]
   )))
 
   # return result (numeric vector of length 40)
@@ -113,7 +145,7 @@ sim.ipw <- function(n,
     "n", "vare", "B", "seed",
     apply(tidyr::expand_grid(
       c("ghat", "stde", "bste"),
-      c("OI", "NI", "CI"),
+      c("OI", "NI", "RI", "CI"),
       1:4), 1, paste, collapse="."))
 
   return(ret)

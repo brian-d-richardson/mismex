@@ -1,13 +1,13 @@
 ###############################################################################
 ###############################################################################
 
-# G-Formula Development
+# G-formula Development
 
 # Brian Richardson
 
-# 2024-02-20
+# 2024-10-31
 
-# Purpose: develop G-formula estimator under mismeasured exposure
+# Purpose: develop G-formula estimators under mismeasured exposure
 
 ###############################################################################
 ###############################################################################
@@ -17,13 +17,14 @@
 rm(list = ls())
 library(devtools)
 library(statmod)
+library(simex)
 library(pbapply)
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(MASS)
 library(tictoc)
-setwd(dirname(getwd()))
+#setwd(dirname(getwd()))
 load_all()
 
 # define parameters -------------------------------------------------------
@@ -41,7 +42,7 @@ args <- list(formula = formula,                 # model fitting arguments
              inv.link = inv.link,
              d.inv.link = d.inv.link)
 
-# according to DGP #1 in Blette submission
+# generate data
 set.seed(seed)
 L1 <- rbinom(n, 1, 0.5)                                        # confounder 1
 L2 <- rbinom(n, 1, 0.2)                                        # confounder 2
@@ -53,54 +54,6 @@ a <- seq(min(A), max(A), length = 3)             # exposure values of interest
 dat0 <- data.frame(Y, A, L1, L2)                 # oracle data
 datstar <- data.frame(Y, Astar, L1, L2)          # mismeasured data
 colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L1", "L2")
-
-# search over grid of B ---------------------------------------------------
-
-# grid of possible B values
-B.grid <- seq(1, 100, by = 1)
-
-# store psi and computation time B (takes ~ 30 seconds)
-run.search <- F
-if (run.search) {
-
-  search.out <- pbvapply(
-    X = 1:length(B.grid),
-    FUN.VALUE = numeric(8),
-    FUN = function(ii) {
-
-      st <- Sys.time()
-      get.psi.glm.mccs <- make.mccs(
-        get.psi = get.psi.glm, data = datstar, args = args,
-        cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
-      psi <- get.psi.glm.mccs(x = g)
-      et <- Sys.time()
-
-      return(c(B = B.grid[ii],
-               psi = psi,
-               Time = et - st))
-    }) %>%
-    t() %>%
-    as.data.frame()
-
-  write.csv(search.out, "development/dev_data/gfmla_res.csv", row.names = F)
-}
-
-# plot results ------------------------------------------------------------
-
-# load results
-search.out <- read.csv("development/dev_data/gfmla_res.csv")
-search.out.long <- search.out %>%
-  pivot_longer(cols = c(psi1, psi2, psi3, psi4, psi5, psi6, Time))
-
-# plot results
-ggplot(data = search.out.long,
-       aes(x = B,
-           y = value)) +
-  geom_line() +
-  facet_wrap(~ name,
-             scales = "free") +
-  labs(y = "") +
-  ggtitle("Score Values and Computation Time by Number of MC Replicates B")
 
 # estimate E{Y(a)} at grid of a -------------------------------------------
 
@@ -123,6 +76,37 @@ gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
                              start = gfmla.naive$est[1:length(g)])
 toc()
 
+# SIMEX estimation --------------------------------------------------------
+
+# fit naive glm
+glm.naive <- glm(
+  as.formula(Y ~ A*L1 + A*L2),
+  family = binomial(link = "logit"),
+  data = datstar,
+  x = T)
+
+# simex
+glm.simex <- simex::simex(
+  model = glm.naive,
+  SIMEXvariable = "A",
+  measurement.error = cov.e,
+  jackknife.estimation = F
+)
+
+plot(glm.simex)
+glm.simex$coefficients
+gfmla.oracle$est
+
+# use simex GLM results to fit g-fmla
+simex.predict <- do.call(rbind,lapply(a, function(aa) mutate(datstar, A = aa)))
+simex.predict$Yhat <- predict(glm.simex,
+                              newdata = simex.predict,
+                              type = "response",
+                              se.fit = F)
+gfmla.simex <- simex.predict %>%
+  group_by(A) %>%
+  summarise(EYa = mean(Yhat))
+
 # format data for dose response curve plot --------------------------------
 
 format.gfmla.res <- function(a, gfmla.res, alpha = 0.05) {
@@ -139,8 +123,19 @@ format.gfmla.res <- function(a, gfmla.res, alpha = 0.05) {
 
 drc.dat <- rbind(cbind(Method = "Naive", format.gfmla.res(a, gfmla.naive)),
                  cbind(Method = "Oracle", format.gfmla.res(a, gfmla.oracle)),
-                 cbind(Method = "MCCS", format.gfmla.res(a, gfmla.mccs))) %>%
-  mutate(Method = factor(Method, levels = c("Naive", "Oracle", "MCCS")))
+                 cbind(Method = "MCCS", format.gfmla.res(a, gfmla.mccs)),
+                 cbind(Method = "SIMEX",
+                       a = a,
+                       est = gfmla.simex$EYa,
+                       se = 0,
+                       lower = gfmla.simex$EYa,
+                       upper = gfmla.simex$EYa)) %>%
+  mutate(Method = factor(Method, levels = c("Naive", "Oracle", "MCCS", "SIMEX")),
+         a = as.numeric(a),
+         est = as.numeric(est),
+         se = as.numeric(se),
+         lower = as.numeric(lower),
+         upper = as.numeric(upper))
 
 drc.true <- 0.4 * inv.link(-2 + 0.7 * a) +
   0.4 * inv.link(-2.6 + 0.3 * a) +

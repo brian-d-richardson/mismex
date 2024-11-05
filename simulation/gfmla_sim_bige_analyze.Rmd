@@ -37,22 +37,17 @@ The estimand of interest in these simulations is the dose response curve $\{\tex
 
 ## Methods
 
-In these simulations, we compare six methods:
+In these simulations, we compare three methods:
 
-1) Oracle GLM
-2) Oracle G-Formula
-3) Naive GLM
-4) Naive G-Formula
-5) Corrected GLM
-6) Corrected G-Formula
+1) Oracle G-Formula
+2) Naive G-Formula
+3) Corrected G-Formula
 
-The GLM methods fit a logistic regression mode of $Y$ on $A$ and $L$ with all interaction terms between $A$ and $L$, then estimate $\textrm{E}\{Y(a)\}$ with $\textrm{logit}^{-1}(\widehat\beta_0+\widehat\beta_aa)$. The G-formula methods fit the same logistic regression models, then estimate $\textrm{E}\{Y(a)\}$ with $n^{-1}\sum_{i=1}^n\textrm{logit}^{-1}(\widehat\beta_0+\widehat\beta_Aa+\widehat\beta_{L_1}L_{1i}+\widehat\beta_{L_2}L_{2i}+\widehat\beta_{A:L_1}aL_{1i}+\widehat\beta_{A:L_2}aL_{2i})$.
+The oracle method uses the true exposure values $A$, which are not observed in practice. The naive method treats $A^*$ as $A$, assuming there is no measurement error. The corrected method uses the Monte-Carlo corrected score versions of the estimating functions, which account for measurement error.
 
-The oracle methods use the true exposure values $A$, which are not observed in practice. The naive methods treat $A^*$ as $A$, assuming there is no measurement error. The corrected methods use the Monte-Carlo corrected score versions of the estimating functions, which account for measurement error.
+In these simulations, we vary the reliability of the exposure, defined as $\textrm{Var}(A) / \textrm{Var}(A^*)$ between $0.5$ and $1$.
 
 ## Results
-
-We first check for simulations with errors.
 
 ```{r}
 
@@ -95,13 +90,14 @@ sim.out.long <- sim.out %>%
            aa = factor(substr(method.aa, 8, 8)),
            a = factor(a[aa]),
            name = factor(substr(method.aa, 1, 3)),
-           EYa.true = EYa.true[aa]) %>% 
+           EYa.true = EYa.true[aa],
+           reliab = 0.6625 / (0.6625 + vare)) %>% 
   dplyr::select(-method.aa) %>% 
-  group_by(clust, n, B, vare, method, aa, a, name) %>% 
+  group_by(clust, n, B, reliab, method, aa, a, name) %>% 
   mutate(id = row_number()) %>% 
   pivot_wider(names_from = name,
               values_from = val,
-              id_cols = c(clust, n, B, vare, method, aa, a, EYa.true, id)) %>% 
+              id_cols = c(clust, n, B, reliab, method, aa, a, EYa.true, id)) %>% 
   mutate(ci.lower = est - qnorm(0.975) * ste,
          ci.upper = est + qnorm(0.975) * ste,
          ci.cov = EYa.true >= ci.lower & EYa.true <= ci.upper,
@@ -118,7 +114,7 @@ We first check for simulations with errors.
 # summarize proportion of missing data by setting
 ftc.dat <- sim.out.long %>% 
   filter(aa == 1) %>% 
-  group_by(method, n, B, vare) %>% 
+  group_by(method, n, B, reliab) %>% 
   summarise(prop.error = mean(is.na(est)))
 
 ftc.dat %>% 
@@ -145,6 +141,9 @@ names(n.labs) <- n
 a.labs <- paste0("a = ", a)
 names(a.labs) <- a
 
+reliab.lab = unique(round(sim.out.long$reliab, 2))
+reliab.lab[seq(2, n_distinct(reliab.lab), 2)] <- ""
+
 # colorblind friendly pallette
 pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
 pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
@@ -154,12 +153,13 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 ```{r}
 
 # create plots
-make.plot <- function(title = T) {
-  
-  plot <- sim.out.long %>% 
-  ggplot(aes(group = vare,
-             y = est)) +
-    geom_boxplot() +
+make.plot <- function(title = F) {
+
+  plot <- sim.out.long %>%
+    filter(method != "Oracle G-Formula") %>% 
+    mutate(reliab = factor(reliab)) %>% 
+    ggplot(aes(x = reliab, y = est, group = reliab)) +
+    geom_boxplot(width = 0.7, outlier.size = 0.5) +
     geom_hline(aes(yintercept = EYa.true),
                linetype = "dashed",
                color = "orange") +
@@ -167,14 +167,13 @@ make.plot <- function(title = T) {
                scales = "free", 
                labeller = labeller(n = n.labs)) +
     labs(y = "Parameter Estimate",
+         x = "Exposure Reliability",
          fill = "Method",
          color = "Method") +
     theme_bw() +
     theme(legend.position = "bottom") +
-    scale_fill_manual(values = pal_light,
-                      labels = method.labs) +
-    scale_color_manual(values = pal_dark,
-                      labels = method.labs)
+    scale_x_discrete(labels = reliab.lab)
+
   
   if (title) {
     plot <- plot +
@@ -187,42 +186,39 @@ make.plot <- function(title = T) {
 
 ```
 
+
 ```{r}
 
 # create plots
-make.plot.2 <- function(title = T) {
+make.plot.2 <- function(title = F) {
   
   plot <- sim.out.long %>% 
-    group_by(vare, n, method) %>% 
-    summarise(mean = mean(est, na.rm = T),
-              se = sd(est, na.rm = T)) %>% 
-    mutate(lower = mean - se,
-           upper = mean + se) %>% 
-    ggplot(aes(x = vare,
-               y = mean,
-               ymin = lower,
-               ymax = upper)) +
+    filter(method != "Oracle G-Formula") %>% 
+    pivot_longer(cols = ends_with(".cov"), 
+                 names_to = "ci.type",
+                 values_to = "ci.cov") %>% 
+    mutate(ci.type = ifelse(ci.type == "bcci.cov", "Bias-Corrected", "Uncorrected")) %>% 
+    group_by(reliab, n, method, ci.type) %>% 
+    summarise(cov = mean(ci.cov, na.rm = T)) %>% 
+    ggplot(aes(x = reliab,
+               linetype = ci.type,
+               y = cov)) +
     geom_line() +
-    geom_linerange() +
-    geom_hline(aes(yintercept = EYa.true),
+    geom_hline(yintercept = 0.95,
                linetype = "dashed",
                color = "orange") +
     facet_grid(n ~ method,
                scales = "free", 
                labeller = labeller(n = n.labs)) +
-    labs(y = "Parameter Estimate",
-         fill = "Method",
-         color = "Method") +
+    labs(y = "Coverage Probability",
+         x = "Exposure Reliability",
+         linetype = "CI Type") +
     theme_bw() +
-    theme(legend.position = "bottom") +
-    scale_fill_manual(values = pal_light,
-                      labels = method.labs) +
-    scale_color_manual(values = pal_dark,
-                      labels = method.labs)
+    theme(legend.position = "bottom")
   
   if (title) {
     plot <- plot +
-      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+      ggtitle(paste0("Empirical Coverage Probabilities of 95% Confidence Intervals"),
               subtitle = paste0(n.rep, " simulations per setting"))
 
   }
@@ -233,11 +229,29 @@ make.plot.2 <- function(title = T) {
 
 ### Plots of Simulation Results
 
-Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at $a=3$.
+Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at $a=3$, and plots of coverage probabilities of confidence intervals.
 
 ```{r message = F, eval = T}
 
 make.plot()
+
+# save plot
+ggsave("sim_figures/gfmla_sim_bige_plot_1.png",
+       width = 6,
+       height = 4,
+       dpi = 300)
+
+```
+
+```{r message = F, eval = T}
+
+make.plot.2()
+
+# save plot
+ggsave("sim_figures/gfmla_sim_bige_plot_2.png",
+       width = 6,
+       height = 4,
+       dpi = 300)
 
 ```
 
@@ -248,7 +262,7 @@ Below is a table for the primary estimand of interest ($a=3$) and for $n \in \{8
 ```{r}
 
 tbl <- sim.out.long %>% 
-  group_by(n, method, vare) %>% 
+  group_by(n, method, reliab) %>% 
   summarise(bias = 100 * mean(est - EYa.true, na.rm = T),
             emp.se = 100 * sd(est, na.rm = T),
             est.se = 100 * mean(ste, na.rm = T),
@@ -256,7 +270,7 @@ tbl <- sim.out.long %>%
             bcest.se = 100 * mean(bcs, na.rm = T),
             bcci.cov = 100 * mean(bcci.cov, na.rm = T)) %>% 
   left_join(ftc.dat) %>% 
-  dplyr::select(n, method, vare, bias, emp.se,
+  dplyr::select(n, method, reliab, bias, emp.se,
                 est.se, ci.cov, bcest.se, bcci.cov)
 
 kbl <- tbl %>% 
@@ -267,7 +281,7 @@ kbl <- tbl %>%
         booktabs = TRUE,
         linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
-        col.names = c("n", "Method", "Var(e)",
+        col.names = c("n", "Method", "Exposure Reliability",
                       "Bias", "ESE",
                       "ASE", "Cov",
                       "ASE", "Cov")) %>%

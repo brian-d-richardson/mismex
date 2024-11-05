@@ -30,6 +30,7 @@ sim.dr <- function(n,
   ## for troubleshooting
   #library(MASS); library(devtools); load_all()
   #n = 2000; vare = 0.16; B = 30; seed = 1;
+  #n = 2000; vare = 0.16; B = 30; seed = 1;
   #n = 2000; vare = 0.0001; B = 2; seed = 1;
 
   mc.seed <- 123                                # MCCS seed
@@ -52,6 +53,7 @@ sim.dr <- function(n,
   EY <- inv.link(model.matrix(as.formula(formula)) %*% g)  # mean of outcome
   Y <- rnorm(n, EY, sqrt(0.16))                               # outcome
   Astar <- A + rnorm(n, 0, sqrt(cov.e))                    # mismeasured A
+  var(A) / var(Astar)
   dat0 <- data.frame(Y, A, L1, L2)                         # oracle data
   datstar <- data.frame(Y, A = Astar, L1, L2)              # mismeasured data
   args <- list(formula = formula,                          # arguments for fitting

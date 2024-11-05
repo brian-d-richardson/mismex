@@ -40,7 +40,8 @@ In these simulations, we compare three methods:
 
 1) Oracle IPW
 2) Naive IPW
-3) Corrected IPW
+3) Regression Calibration IPW
+4) Corrected IPW
 
 To construct the standardized weights for the oracle and naive IPW estimators, the normal densities $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated. For the numerator, the sample mean and covariance of $\pmb{A}$ are used. For the denominator, a linear model $\pmb{A} \sim L$ is fit, where it is assumed/known that $A_1, A_2, A_3$ are conditionally independent given $L$.
 
@@ -79,9 +80,10 @@ sim.out.long <- sim.out %>%
                names_to = "method.param",
                values_to = "val") %>% 
     mutate(method = factor(substr(method.param, 6, 7),
-                           levels = c("OI", "NI", "CI"),
+                           levels = c("OI", "NI", "RI", "CI"),
                            labels = c("Oracle IPW",
                                       "Naive IPW",
+                                      "Reg. Cal. IPW",
                                       "IPW CS")),
            param = factor(substr(method.param, 9, 9)),
            name = factor(substr(method.param, 1, 4)),

@@ -1,4 +1,4 @@
-#' run one G-formula simulation
+#' run one G-formula simulation with RC comparator
 #'
 #' @inheritParams sim.dr
 #' @inheritParams fit.gfmla
@@ -60,7 +60,25 @@ sim.gfmla <- function(n,
   datstar <- data.frame(Y, Astar, L1, L2)          # mismeasured data
   colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L1", "L2")
 
-  ## fit g-formula models
+  # estimate E(A | Astar) for regression calibration ------------------------
+
+  # estimate means and covariances
+  E.A <- mean(datstar$A)                               # E(A)
+  E.L <- colMeans(datstar[,c("L1","L2")])              # E(L)
+  Sigma.AA <- var(datstar$A) - cov.e                   # Cov(A)
+  Sigma.LA <- cov(datstar$A, datstar[,c("L1","L2")])   # Cov(A, L)
+  Sigma.LL <- cov(datstar[,c("L1","L2")])              # Cov(L)
+
+  # estimate E(A | Astar, L)
+  E.A.AstarL <- E.A + c(
+    c(Sigma.AA, Sigma.LA) %*%
+      solve(rbind(cbind(Sigma.AA + cov.e, Sigma.LA),
+                  cbind(t(Sigma.LA), Sigma.LL))) %*%
+      t(as.matrix(datstar[,c("A", "L1", "L2")] -
+                    do.call(rbind, replicate(n, c(E.A, E.L), simplify = F)))))
+
+  # create data set for regression calibration
+  datrc <- data.frame(Y, A = E.A.AstarL, L1, L2)
 
   # estimate E{Y(a)} at grid of a -------------------------------------------
 
@@ -71,6 +89,10 @@ sim.gfmla <- function(n,
   gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
                             start = gfmla.naive$est[1:length(g)])
 
+  # regression calibration g-formula
+  gfmla.rc <- fit.gfmla(data = datrc, a = a, args = args,
+                        start = gfmla.naive$est[1:length(g)])
+
   # corrected g-formula
   gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
                                cov.e = cov.e, B = B, mc.seed = mc.seed,
@@ -78,33 +100,38 @@ sim.gfmla <- function(n,
 
   ## extract estimated E{Y(a)} and std error
 
-  # (iv) oracle g-formula
+  # oracle g-formula
   est.OG <- tail(gfmla.oracle$est, length(a))
   ste.OG <- sqrt(tail(diag(gfmla.oracle$var), length(a)))
   bcs.OG <- sqrt(tail(diag(gfmla.oracle$bc.var), length(a)))
 
-  # (v) naive g-formula
+  # naive g-formula
   est.NG <- tail(gfmla.naive$est, length(a))
   ste.NG <- sqrt(tail(diag(gfmla.naive$var), length(a)))
   bcs.NG <- sqrt(tail(diag(gfmla.naive$bc.var), length(a)))
 
-  # (vi) corrected g-formula
+  # regression calibration g-formula
+  est.RG <- tail(gfmla.rc$est, length(a))
+  ste.RG <- sqrt(tail(diag(gfmla.rc$var), length(a)))
+  bcs.RG <- sqrt(tail(diag(gfmla.rc$bc.var), length(a)))
+
+  # corrected g-formula
   est.CG <- tail(gfmla.mccs$est, length(a))
   ste.CG <- sqrt(tail(diag(gfmla.mccs$var), length(a)))
   bcs.CG <- sqrt(tail(diag(gfmla.mccs$bc.var), length(a)))
 
   # combine results: estimates and std errors for 4 parameters
   ret <- c(n, vare, B, seed, a,
-           est.OG, est.NG, est.CG,
-           ste.OG, ste.NG, ste.CG,
-           bcs.OG, bcs.NG, bcs.CG)
+           est.OG, est.NG, est.RG, est.CG,
+           ste.OG, ste.NG, ste.RG, ste.CG,
+           bcs.OG, bcs.NG, bcs.RG, bcs.CG)
 
   names(ret) <- c(
     "n", "vare", "B", "seed",
     paste0("a", 1:length(a)),
     apply(tidyr::expand_grid(
       c("est", "ste", "bcs"),
-      c("OG", "NG", "CG"),
+      c("OG", "NG", "RG", "CG"),
       1:length(a)),
       1, paste, collapse="."))
 

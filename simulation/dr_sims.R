@@ -31,9 +31,9 @@ base.seed <- 10^6 * as.integer(args)
 n.sim <- 100
 
 # varied parameters
-n <- 2000                           # sample size
-B <- 80                             # number of MC replicates
-vare <- 0.05                        # measurement error variance for A1, A2
+n <- c(400, 2000)                 # sample size
+B <- 80                           # number of MC replicates
+vare <- 0.6#0.16                      # measurement error variance
 
 # run simulations ---------------------------------------------------------
 

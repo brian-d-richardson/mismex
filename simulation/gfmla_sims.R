@@ -54,7 +54,7 @@ sim.out <- pbapply::pbvapply(
               seed = sim.in$sim.id[ii])
 
   },
-  FUN.VALUE = numeric(54)) |>
+  FUN.VALUE = numeric(69)) |>
   t()
 
 # save sim results

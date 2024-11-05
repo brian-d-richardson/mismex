@@ -28,7 +28,7 @@ base.seed <- 10^6 * as.integer(args)
 
 n.sim <- 100                             # number of sims per cluster
 a <- seq(1, 4, length = 20)        # exposures at which to estimate E{Y(a)}
-len.out <- 84
+len.out <- 104
 
 # varied parameters
 n <- 8000                     # sample size

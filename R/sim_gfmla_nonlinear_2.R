@@ -48,7 +48,7 @@ sim.gfmla.nonlinear.2 <- function(n,
                inv.link = inv.link,
                d.inv.link = d.inv.link)
 
-  # according to DGP #1 in Blette submission
+  # generate data
   set.seed(seed)
   L <- runif(n)                                                  # confounder
   A <- rnorm(n, L, sqrt(0.25))
@@ -59,7 +59,25 @@ sim.gfmla.nonlinear.2 <- function(n,
   datstar <- data.frame(Y, Astar, L)          # mismeasured data
   colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L")
 
-  ## fit g-formula models
+  # estimate E(A | Astar) for regression calibration ------------------------
+
+  # estimate means and covariances
+  E.A <- mean(datstar$A)                  # E(A)
+  E.L <- mean(datstar$L)                  # E(L)
+  Sigma.AA <- var(datstar$A) - cov.e      # Cov(A)
+  Sigma.LA <- cov(datstar$A, datstar$L)   # Cov(A, L)
+  Sigma.LL <- var(datstar$L)              # Cov(L)
+
+  # estimate E(A | Astar, L)
+  E.A.AstarL <- E.A + c(
+    c(Sigma.AA, Sigma.LA) %*%
+      solve(rbind(cbind(Sigma.AA + cov.e, Sigma.LA),
+                  cbind(t(Sigma.LA), Sigma.LL))) %*%
+      t(as.matrix(datstar[,c("A", "L")] -
+                    do.call(rbind, replicate(n, c(E.A, E.L), simplify = F)))))
+
+  # create data set for regression calibration
+  datrc <- data.frame(Y, A = E.A.AstarL, L)
 
   # estimate E{Y(a)} at grid of a -------------------------------------------
 
@@ -72,6 +90,11 @@ sim.gfmla.nonlinear.2 <- function(n,
                             start = gfmla.naive$est[1:length(g)],
                             return.var = F, return.bcvar = F)
 
+  # regression calibration g-formula
+  gfmla.rc <- fit.gfmla(data = datrc, a = a, args = args,
+                        start = gfmla.naive$est[1:length(g)],
+                        return.var = F, return.bcvar = F)
+
   # corrected g-formula
   gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
                                cov.e = cov.e, B = B, mc.seed = mc.seed,
@@ -80,24 +103,27 @@ sim.gfmla.nonlinear.2 <- function(n,
 
   ## extract estimated E{Y(a)}
 
-  # (iv) oracle g-formula
+  # (i) oracle g-formula
   est.OG <- tail(gfmla.oracle$est, length(a))
 
-  # (v) naive g-formula
+  # (ii) naive g-formula
   est.NG <- tail(gfmla.naive$est, length(a))
 
-  # (vi) corrected g-formula
+  # (iii) regression calibration g-formula
+  est.RG <- tail(gfmla.rc$est, length(a))
+
+  # (iv) corrected g-formula
   est.CG <- tail(gfmla.mccs$est, length(a))
 
   # combine results: estimates and std errors for 4 parameters
   ret <- c(n, vare, B, seed, a,
-           est.OG, est.NG, est.CG)
+           est.OG, est.NG, est.RG, est.CG)
 
   names(ret) <- c(
     "n", "vare", "B", "seed",
     paste0("a", 1:length(a)),
     apply(tidyr::expand_grid(
-      c("OG", "NG", "CG"),
+      c("OG", "NG", "RG", "CG"),
       1:length(a)),
       1, paste, collapse="."))
 

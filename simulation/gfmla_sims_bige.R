@@ -32,7 +32,7 @@ a <- 3            # exposures at which to estimate E{Y(a)}
 # varied parameters
 n <- c(800, 8000)                  # sample size
 B <- 80                            # number of MC replicates
-vare <- seq(0.01, 1, length = 10)  # measurement error variance for A
+vare <- (seq(0.5, 1, length = 10)^(-1) - 1) * 0.6625  # measurement error variance for A
 
 # run simulations ---------------------------------------------------------
 

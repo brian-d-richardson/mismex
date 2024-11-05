@@ -49,11 +49,29 @@ sim.gfmla.2 <- function(n,
   datstar <- data.frame(Y, Astar, L1, L2)          # mismeasured data
   colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L1", "L2")
 
-  ## fit g-formula models
+  # estimate E(A | Astar) for regression calibration ------------------------
+
+  # estimate means and covariances
+  E.A <- mean(datstar$A)                               # E(A)
+  E.L <- colMeans(datstar[,c("L1","L2")])              # E(L)
+  Sigma.AA <- var(datstar$A) - cov.e                   # Cov(A)
+  Sigma.LA <- cov(datstar$A, datstar[,c("L1","L2")])   # Cov(A, L)
+  Sigma.LL <- cov(datstar[,c("L1","L2")])              # Cov(L)
+
+  # estimate E(A | Astar, L)
+  E.A.AstarL <- E.A + c(
+    c(Sigma.AA, Sigma.LA) %*%
+      solve(rbind(cbind(Sigma.AA + cov.e, Sigma.LA),
+                  cbind(t(Sigma.LA), Sigma.LL))) %*%
+      t(as.matrix(datstar[,c("A", "L1", "L2")] -
+                    do.call(rbind, replicate(n, c(E.A, E.L), simplify = F)))))
+
+  # create data set for regression calibration
+  datrc <- data.frame(Y, A = E.A.AstarL, L1, L2)
 
   # estimate E{Y(a)} at grid of a -------------------------------------------
 
-  # g-formula
+  # naive g-formula
   gfmla.naive <- fit.gfmla(data = datstar, a = a, args = args,
                            return.var = F, return.bcvar = F)
 
@@ -61,6 +79,11 @@ sim.gfmla.2 <- function(n,
   gfmla.oracle <- fit.gfmla(data = dat0, a = a, args = args,
                             start = gfmla.naive$est[1:length(g)],
                             return.var = F, return.bcvar = F)
+
+  # regression calibration g-formula
+  gfmla.rc <- fit.gfmla(data = datrc, a = a, args = args,
+                        start = gfmla.naive$est[1:length(g)],
+                        return.var = F, return.bcvar = F)
 
   # corrected g-formula
   gfmla.mccs <- fit.gfmla.mccs(data = datstar, a = a, args = args,
@@ -76,18 +99,21 @@ sim.gfmla.2 <- function(n,
   # (ii) naive g-formula
   est.NG <- tail(gfmla.naive$est, length(a))
 
-  # (iii) corrected g-formula
+  # (iii) regression calibration g-formula
+  est.RG <- tail(gfmla.rc$est, length(a))
+
+  # (iv) corrected g-formula
   est.CG <- tail(gfmla.mccs$est, length(a))
 
   # combine results: estimates and std errors for 4 parameters
   ret <- c(n, vare, B, seed, a,
-           est.OG, est.NG, est.CG)
+           est.OG, est.NG, est.RG, est.CG)
 
   names(ret) <- c(
     "n", "vare", "B", "seed",
     paste0("a", 1:length(a)),
     apply(tidyr::expand_grid(
-      c("OG", "NG", "CG"),
+      c("OG", "NG", "RG", "CG"),
       1:length(a)),
       1, paste, collapse="."))
 

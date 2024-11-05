@@ -61,7 +61,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/gfmla_data/v3/sd",
+          read.csv(paste0("sim_data/gfmla_data/sd",
                           clust, ".csv")))
   })
 
@@ -88,9 +88,10 @@ sim.out.long <- sim.out %>%
                names_to = "method.aa",
                values_to = "val") %>% 
     mutate(method = factor(substr(method.aa, 5, 6),
-                           levels = c("OG", "NG", "CG"),
+                           levels = c("OG", "NG", "RG", "CG"),
                            labels = c("Oracle G-Formula",
                                       "Naive G-Formula",
+                                      "Reg. Cal. G-Formula",
                                       "Corrected G-Formula")),
            aa = factor(substr(method.aa, 8, 8)),
            a = factor(a[aa]),
@@ -135,9 +136,10 @@ n <- unique(sim.out$n)
 # make labels for plots
 method.labs <- c("Oracle G-Formula",
                  "Naive G-Formula",
+                 "Reg. Cal. G-Formula",
                  "G-Formula CS")
 
-names(method.labs) <- c("OG", "NG", "CG")
+names(method.labs) <- c("OG", "NG", "RG", "CG")
 
 n.labs <- paste0("n = ", n)
 names(n.labs) <- n
@@ -168,7 +170,6 @@ plot.by.a <- function(a., title = T) {
                color = "orange") +
     facet_wrap(~ n,
                scales = "free", 
-               ncol = 1,
                labeller = labeller(n = n.labs)) +
     labs(y = "Parameter Estimate",
          fill = "Method",

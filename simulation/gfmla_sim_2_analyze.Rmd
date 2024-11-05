@@ -80,13 +80,17 @@ n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare))
 # make long data frame
 sim.out.long <- sim.out %>% 
   dplyr::select(!starts_with("a")) %>% 
-  pivot_longer(cols = starts_with("OG") | starts_with("NG") | starts_with("CG"), 
+  pivot_longer(cols = starts_with("OG") |
+                      starts_with("NG") |
+                      starts_with("RG") |
+                      starts_with("CG"), 
                names_to = "method.aa",
                values_to = "val") %>% 
     mutate(method = factor(substr(method.aa, 1, 2),
-                           levels = c("OG", "NG", "CG"),
+                           levels = c("OG", "NG", "RG", "CG"),
                            labels = c("Oracle G-Formula",
                                       "Naive G-Formula",
+                                      "Reg. Cal. G-Formula",
                                       "G-Formula CS")),
            aa = as.numeric(gsub("[.]", "", substr(method.aa, 4, 5))),
            a = a[aa],

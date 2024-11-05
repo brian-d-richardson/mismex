@@ -67,7 +67,7 @@ sim.out.list <- lapply(
   X = 0:9,
   FUN = function(clust) {
     cbind(clust,
-          read.csv(paste0("sim_data/dr_data/sd",
+          read.csv(paste0("sim_data/dr_data_rel0_7/sd",
                           clust, ".csv")))
   })
 
@@ -88,8 +88,8 @@ sim.out <- bind_rows(sim.out.list) %>%
                        labels = c("Oracle", "Naive", "MCCS")),
          spec = factor(ifelse(ps == 0 & out == 0, "PS and OR",
                        ifelse(ps == 0 & out == 1, "PS",
-                       ifelse(ps == 1 & out == 0, "OR", ""))),
-                       levels = c("PS and OR", "PS", "OR", "")),
+                       ifelse(ps == 1 & out == 0, "OR", "Neither"))),
+                       levels = c("PS and OR", "PS", "OR", "Neither")),
          ps = factor(ps,
                      levels = c(0, 1),
                      labels = c("PS Correct", "PS Incorrect")),
