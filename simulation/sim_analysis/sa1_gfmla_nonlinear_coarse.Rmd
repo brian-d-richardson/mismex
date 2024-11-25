@@ -1,0 +1,247 @@
+---
+title: "Simulation 1: g-formula with nonlinear MSM and coarse grid"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(devtools)
+library(kableExtra)
+load_all()
+
+```
+
+```{r warning = F}
+
+# load simulation results from each of 10 clusters
+setwd(dirname(getwd()))
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/sim1_gfmla_nonlinear_coarse/sd",
+                          clust, ".csv")))
+  })
+
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list)
+
+# true estimands
+g <- c(0, 0.25, 0.5, -0.5, 1)          # outcome model parameters
+a <- -1:2                                        # exposure value of interest
+EYa.true <- g[1] + 0.5*g[5] + a*g[2] + a^2*g[3] + a^3*g[4]
+
+# number of sims per setting
+n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare))
+
+# make long data frame
+sim.out.long <- sim.out %>% 
+  pivot_longer(cols = starts_with("est") | 
+                      starts_with("ste") |
+                      starts_with("bcs"), 
+               names_to = "method.aa",
+               values_to = "val") %>% 
+    mutate(method = factor(substr(method.aa, 5, 6),
+                           levels = c("OG", "NG", "RG", "SG", "CG"),
+                           labels = c("Oracle G-Formula",
+                                      "Naive G-Formula",
+                                      "Reg. Cal. G-Formula",
+                                      "SIMEX G-Formula",
+                                      "G-Formula CS")),
+           aa = factor(substr(method.aa, 8, 8)),
+           a = factor(a[aa]),
+           name = factor(substr(method.aa, 1, 3)),
+           EYa.true = EYa.true[aa]) %>% 
+  dplyr::select(-method.aa) %>% 
+  group_by(clust, n, B, vare, method, aa, a, name) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_wider(names_from = name,
+              values_from = val,
+              id_cols = c(clust, n, B, vare, method, aa, a, EYa.true, id)) %>% 
+  mutate(ci.lower = est - qnorm(0.975) * ste,
+         ci.upper = est + qnorm(0.975) * ste,
+         ci.cov = EYa.true >= ci.lower & EYa.true <= ci.upper,
+         bcci.lower = est - qnorm(0.975) * bcs,
+         bcci.upper = est + qnorm(0.975) * bcs,
+         bcci.cov = EYa.true >= bcci.lower & EYa.true <= bcci.upper)
+
+```
+
+The goal of this program is to evaluate the G-formula CS estimator with a nonlinear outcome model and for a coarse grid of exposure values.
+
+## Setup
+
+Consider the following setup:
+
+* single confounder $L_1 \sim U(0,1)$,
+* univariate continuous exposure $A$ with $A|L \sim N(L,)$,
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.09)$,
+* normal outcome $Y$ with $Y|A,L \sim N(0 + 0.25A, 0.5A^2, -0.5^2 + L, 0.16)$.
+
+This data generating process leads to a mean potential outcome at $a$ of $\textrm{E}\{Y(a)\} = 0.5 + 0.25a + 0.5a^2 - 0.5a^3$.
+
+The estimand of interest in these simulations is the dose response curve $\{\textrm{E}[Y(a)] : a \in \mathcal{A}\}$.
+
+## Methods
+
+In these simulations, we compare five methods:
+
+1) Oracle G-Formula
+2) Naive G-Formula
+3) Regression Calibration G-Formula
+4) SIMEX G-Formula
+5) CS G-Formula
+
+The oracle method uses the true exposure values $A$, which are not observed in practice. The naive method treats $A^*$ as $A$, assuming there is no measurement error. Regression calibration replaces $A^*$ with an approximation of $\textrm{E}(A|A^*,L)$. SIMEX uses simulated data with a sequence of additional measurement error to extrapolate backwards to estimate the dose response curve with no measurement error. The CS method uses the Monte-Carlo corrected score versions of the estimating functions.
+
+## Results
+
+We first check for simulations with errors.
+
+```{r message = F}
+
+# summarize proportion of missing data by setting
+ftc.dat <- sim.out.long %>% 
+  filter(aa == 1) %>% 
+  group_by(method, n, B, vare) %>% 
+  summarise(prop.error = mean(is.na(est)))
+
+ftc.dat %>% 
+  filter(prop.error > 0) %>% 
+  ungroup()
+
+```
+
+```{r}
+
+# extract simulation parameters
+n <- unique(sim.out$n)
+
+# make labels for plots
+method.labs <- c("Oracle G-Formula",
+                 "Naive G-Formula",
+                 "Reg. Cal. G-Formula",
+                 "SIMEX G-Formula",
+                 "CS G-Formula")
+
+names(method.labs) <- c("OG", "NG", "RG", "SG", "CG")
+
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+a.labs <- paste0("a = ", a)
+names(a.labs) <- a
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
+
+```
+
+```{r}
+
+# separate plots for each exposure value a, and for selected methods
+plot.by.a <- function(a., title = T) {
+  
+  plot <- sim.out.long %>% 
+    filter(a == a.) %>% 
+  ggplot(aes(x = method,
+             y = est,
+             fill = method,
+             color = method)) +
+    geom_boxplot() +
+    geom_hline(aes(yintercept = EYa.true),
+               linetype = "dashed",
+               color = "orange") +
+    facet_wrap(~ n,
+               scales = "free", 
+               labeller = labeller(n = n.labs)) +
+    labs(y = "Parameter Estimate",
+         fill = "Method",
+         color = "Method") +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_manual(values = pal_light,
+                      labels = method.labs) +
+    scale_color_manual(values = pal_dark,
+                      labels = method.labs)
+  
+  if (title) {
+    plot <- plot +
+      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+              subtitle = paste0("a = ", a., "; ",
+                                n.rep, " simulations per setting"))
+
+  }
+  return(plot)
+}
+
+```
+
+### Plots of Simulation Results
+
+Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at various exposure values $a$.
+
+```{r message = F, eval = T}
+
+plot.by.a(a. = -1)
+plot.by.a(a. = 0)
+plot.by.a(a. = 1)
+plot.by.a(a. = 2)
+
+```
+
+### Tables of Simulation Results
+
+Below is a table for the primary estimand of interest ($\textrm{E}\{Y(a)\}$ for $a=1$). It includes empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the 95% CI, for both uncorrected and bias-corrected standard errors.
+
+```{r message = F}
+
+tbl <- sim.out.long %>% 
+  filter(a == 1) %>% 
+  group_by(n, method, a) %>% 
+  summarise(bias = 100 * mean(est - EYa.true, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(ste, na.rm = T),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bcs, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T)) %>% 
+  left_join(ftc.dat) %>% 
+  dplyr::select(n, method, bias, emp.se,
+                est.se, ci.cov, bcest.se, bcci.cov)
+
+kbl <- tbl %>% 
+  kable(format = "latex",
+        digits = c(0, 0, 1, 1, 1, 1, 1, 1, 1),
+        align = c(rep("c", 2),
+                  rep("r", 7)),
+        booktabs = TRUE,
+        linesep = c("", "", "", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "Method",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov")) %>%
+  add_header_above(c(" " = 4,
+                     "UC" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+print(kbl)
+
+```
+

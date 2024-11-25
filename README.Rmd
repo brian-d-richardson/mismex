@@ -27,7 +27,8 @@ devtools::install_github(repo = "brian-d-richardson/mismex",
 ```{r, message = F}
 
 ## load the package
-library(mismex)
+#library(mismex)
+library(devtools);
 
 ## load additional packages
 library(MASS)
@@ -61,7 +62,7 @@ Data are generated below according to the data generation process described in t
 n = 2000                                  # sample size
 seed = 1                                  # random number seed
 mc.seed <- 123                            # MCCS seed
-cov.e <- 0.16                             # var(epsilon)
+cov.e <- 0.36                             # var(epsilon)
 inv.link <- inv.ident                     # inverse link
 d.inv.link <- d.inv.ident                 # derivative of inverse link
 g <- c(1.5, 0.7, 0.9, -0.6, -0.7, 0.4)    # outcome model parameters
@@ -93,7 +94,7 @@ head(datstar, 5)
 
 The dose response curve at chosen values of the exposure $a$ are estimated here using the MCCS g-formula method.
 
-Before fitting the model, we determine an appropriate number of Monte-Carlo replicates $B$ in order for the G-formula MCCS function to approximate the CS function. We can do this by evaluating the MCCS function for a sequence of $B$ values, and at a particular parameter value, say the naive g-formula estimator (ignoring measurement error).
+Before fitting the model, we determine an appropriate number of Monte-Carlo replicates $B$ in order for the G-formula MCCS function to approximate the CS function. We can do this by evaluating the MCCS function for a sequence of $B$ values at a particular parameter value, say the naive g-formula estimator (ignoring measurement error).
 
 ```{r}
 
@@ -107,40 +108,16 @@ gfmla.naive <- fit.glm(data = datstar,
                        args = gfmla.args,
                        return.var = F)$est
 
-## grid of possible B values
-B.grid <- seq(1, 50, by = 2)
+## assess MCCS estimating function over grid of B values
+gfmla.B.tuning <- tune.B(
+  get.psi = get.psi.glm,
+  data = datstar,
+  cov.e = cov.e,
+  BB = seq(1, 50, by = 2),
+  args = gfmla.args,
+  mc.seed = 123)
 
-## store psi and computation time B
-B.search <- vapply(
-  X = 1:length(B.grid),
-  FUN.VALUE = numeric(8),
-  FUN = function(ii) {
-
-    st <- Sys.time()
-    get.psi.glm.mccs <- make.mccs(
-      get.psi = get.psi.glm, data = datstar, args = gfmla.args,
-      cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
-    psi <- get.psi.glm.mccs(x = gfmla.naive)
-    et <- Sys.time()
-
-    return(c(B = B.grid[ii],
-             Time = et - st,
-             psi = psi))
-  }) %>%
-  t() %>%
-  as.data.frame() %>%
-  `colnames<-`(c("B", "Time", paste0("psi", 0:5))) %>% 
-  pivot_longer(cols = !B)
-
-## plot results
-ggplot(data = B.search,
-       aes(x = B,
-           y = value)) +
-  geom_line() +
-  facet_wrap(~ name,
-             scales = "free") +
-  labs(y = "") +
-  ggtitle("Score Values and Computation Time by Number of MC Replicates B")
+gfmla.B.tuning$plot
 
 ```
 

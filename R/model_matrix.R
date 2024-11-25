@@ -1,4 +1,4 @@
-#' Create model matrix with complex numbers
+#' Create model matrix for A|L model with complex numbers
 #'
 #' @inheritParams get.psi.glm
 #'
@@ -9,44 +9,58 @@
 #' @export
 #'
 #'
-
 mod.mat <- function(trms, data) {
 
   respname <- as.character(attr(trms, "variables")[[attr(trms, "response") + 1]])
   termlabs <- attr(trms, "term.labels")
-  interactions <- grep(":", attr(trms, "term.labels"), value = TRUE)
+  interactions <- grep(":", termlabs, value = TRUE)
 
-  # Handle polynomial terms of the form "I(A^n)"
-  polynomial_terms <- grep("^I\\(A\\^.*\\)$", termlabs, value = TRUE)
+  # Handle polynomial terms for A* and L* (A, A1, A2, ..., and L, L1, L2, ...)
+  A_polynomial_terms <- grep("^I\\(A[0-9]*\\^.*\\)$", termlabs, value = TRUE)
+  L_polynomial_terms <- grep("^I\\(L[0-9]*\\^.*\\)$", termlabs, value = TRUE)
 
-  # Non-interaction, non-polynomial terms
-  non_polynomial_terms <- termlabs[!(termlabs %in% c(interactions, polynomial_terms))]
+  # Identify non-polynomial, non-interaction terms
+  non_polynomial_terms <- setdiff(termlabs, c(interactions, A_polynomial_terms, L_polynomial_terms))
 
-  # Check for "L" and separate it to handle ordering
-  L_terms <- grep("^L$", non_polynomial_terms, value = TRUE)
-  non_polynomial_terms <- setdiff(non_polynomial_terms, L_terms)
+  # Separate plain "A*" and "L*" terms (e.g., A, A1, L, L1)
+  A_terms <- grep("^A[0-9]*$", non_polynomial_terms, value = TRUE)
+  L_terms <- grep("^L[0-9]*$", non_polynomial_terms, value = TRUE)
+  non_polynomial_terms <- setdiff(non_polynomial_terms, c(A_terms, L_terms))
 
-  # Initialize model frame with non-polynomial, non-L terms
+  # Initialize model frame with non-polynomial, non-A, non-L terms
   modelframe <- data[non_polynomial_terms]
 
-  # Add polynomial terms for A before L
-  if (length(polynomial_terms) != 0) {
-    for (poly_term in polynomial_terms) {
-      # Extract the variable and exponent from terms like "I(A^2)"
-      term_split <- strsplit(poly_term, "\\^|\\(|\\)")[[1]]
-      var_name <- term_split[2]  # The variable name (A)
-      exponent <- as.numeric(term_split[3])  # The exponent
-      # Compute the polynomial term
-      modelframe[, poly_term] <- data[, var_name]^exponent
+  # Add "A*" terms and A polynomials
+  if (length(A_terms) != 0) {
+    for (term in A_terms) {
+      modelframe[, term] <- data[, term]
+    }
+  }
+  if (length(A_polynomial_terms) != 0) {
+    for (term in A_polynomial_terms) {
+      term_split <- strsplit(term, "\\^|\\(|\\)")[[1]]
+      var_name <- term_split[2]  # Variable name (e.g., A, A1)
+      exponent <- as.numeric(term_split[3])  # Extract exponent for A
+      modelframe[, term] <- data[, var_name]^exponent
     }
   }
 
-  # Add L terms after polynomial terms
+  # Add "L*" terms and L polynomials
   if (length(L_terms) != 0) {
-    modelframe[, L_terms] <- data[, L_terms]
+    for (term in L_terms) {
+      modelframe[, term] <- data[, term]
+    }
+  }
+  if (length(L_polynomial_terms) != 0) {
+    for (term in L_polynomial_terms) {
+      term_split <- strsplit(term, "\\^|\\(|\\)")[[1]]
+      var_name <- term_split[2]  # Variable name (e.g., L, L1)
+      exponent <- as.numeric(term_split[3])  # Extract exponent for L
+      modelframe[, term] <- data[, var_name]^exponent
+    }
   }
 
-  # Add interaction terms to model frame
+  # Add interaction terms
   if (length(interactions) != 0) {
     for (inter in interactions) {
       intersplit <- strsplit(inter, ":")[[1]]
@@ -68,8 +82,8 @@ mod.mat <- function(trms, data) {
     attr(modelmatrix, "assign") <- 1:length(termlabs)
   }
 
-  # Set column names with the correct ordering: (Intercept), non-polynomial terms, polynomials, L, interactions
-  colnames <- c("(Intercept)", non_polynomial_terms, polynomial_terms, L_terms, interactions)
+  # Set column names with specified order: Intercept, A terms, A polynomials, L terms, L polynomials, interactions
+  colnames <- c("(Intercept)", A_terms, A_polynomial_terms, L_terms, L_polynomial_terms, interactions)
   attr(modelmatrix, "dimnames") <- list(as.character(1:nrow(modelframe)), colnames)
 
   return(modelmatrix)

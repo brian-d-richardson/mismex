@@ -1,0 +1,296 @@
+---
+title: "MCCS IPW Simulation Results"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(kableExtra)
+
+```
+
+The goal of this program is to evaluate the Monte Carlo corrected score inverse probability weighting (MCCS IPW) estimator in the presence of confounding and measurement error, and in a scenario where the propensity score model $\pmb{A}|L$ is nonlinear.
+
+## Setup
+
+Consider the following setup:
+
+* continuous confounder $L \sim U(0, 1)$,
+* trivariate continuous exposure $\pmb{A} = (A_1, A_2, A_3)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_3\left(\begin{bmatrix} 0.4L^2 \\ -0.4L^2 \\ 0.2 - 0.1L^2 \end{bmatrix}, \begin{bmatrix} 0.09 & 0 & 0 \\ 0 & 0.09 & 0 \\ 0 & 0 & 0.09 \end{bmatrix}\right)$. 
+* mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2,  A^*_3)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2, \epsilon_3)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, $\pmb{\Sigma}_e = \begin{bmatrix} \sigma_e^2 & 0 & 0 \\ 0 & \sigma_e^2 & 0 \\ 0 & 0 & 0\end{bmatrix}$.
+* binary outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) =  \widetilde\gamma_0 + \widetilde\gamma_1 a_1 + \widetilde\gamma_2 a_2 + \widetilde\gamma_3 a_3 + \widetilde\gamma_4L + \widetilde\gamma_5 a_1L + \widetilde\gamma_6 a_2L + \widetilde\gamma_7 a_3L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3, \widetilde\gamma_4, \widetilde\gamma_5, \widetilde\gamma_6, \widetilde\gamma_7)^T = (0.4, 0.15, 0.15, 0.2, 0.1, 0.1, 0, -0.1)^T$.
+
+This data generating process leads to the marginal structural model
+$\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2 + \gamma_3 a_3$, where $\pmb{\gamma} = (\gamma_0, \gamma_1, \gamma_2, \gamma_3)^T = (0.45, 0.2, 0.15, 0.15)^T$.
+
+The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in the marginal structural model.
+
+## Methods
+
+In these simulations, we compare four methods:
+
+1) Oracle IPW
+2) Naive IPW
+3) Regression Calibration IPW
+4) Corrected IPW
+
+To construct the standardized weights for the oracle and naive IPW estimators, the normal densities $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated. For the numerator, the sample mean and covariance of $\pmb{A}$ are used. For the denominator, a linear model $\pmb{A} \sim L$ is fit, where it is assumed/known that $A_1, A_2, A_3$ are conditionally independent given $L$.
+
+To construct the standardized weights for the corrected IPW estimator, $f_{\pmb{A}}$ and $f_{\pmb{A}|L}$ need to be estimated using $\pmb{A}^*$. Since $\pmb{A}$ and $\pmb{\epsilon}$ are independent multivariate normal, $\textrm{E}(\pmb{A})$ can be estimated with the sample mean of $\pmb{A}^*$, and $\textrm{Cov}(\pmb{A})$ with the sample covariance of $\pmb{A}^*$ minus $\pmb{\Sigma}_e$. Likewise, since, conditional on $L$, $\pmb{A}$ and $\pmb{\epsilon}$ are independent multivariate normal, estimated coefficients from the linear model $\pmb{A}^* \sim L$ are consistent for the coefficients of $\pmb{A} \sim L$, and the conditional covariance of $\pmb{A} | L$ can be estimated by subtracting $\pmb{\Sigma}_e$ from the residual covariance of the model $\pmb{A}^* \sim L$.
+
+For both the IPW estimators, estimating equations for the estimated weights and for the outcome model are stacked. This is necessary for sandwich variance estimators to be consistent.
+
+## Results
+
+```{r}
+
+# load simulation results from each of 10 clusters
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/ipw_nonlinearps_data/sd",
+                          clust, ".csv")))
+  })
+
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list)
+
+# true MSM parameters
+g <- c(2, 1.5, -1.5)
+
+# number of sims per setting
+n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare))
+
+# make long data frame
+sim.out.long <- sim.out %>% 
+  pivot_longer(cols = starts_with("ghat") |
+                 starts_with("stde") |
+                 starts_with("bste"), 
+               names_to = "method.param",
+               values_to = "val") %>% 
+    mutate(method = factor(substr(method.param, 6, 7),
+                           levels = c("OI", "NI", "RI", "SI", "CI"),
+                           labels = c("Oracle IPW",
+                                      "Naive IPW",
+                                      "Reg. Cal. IPW",
+                                      "SIMEX IPW",
+                                      "IPW CS")),
+           param = factor(substr(method.param, 9, 9)),
+           name = factor(substr(method.param, 1, 4)),
+           g.true = g[param]) %>% 
+  dplyr::select(-method.param) %>% 
+  group_by(clust, n, B, vare, method, param, name) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_wider(names_from = name,
+              values_from = val,
+              id_cols = c(clust, n, B, vare, method,
+                          param, g.true, id)) %>% 
+  mutate(ci.lower = ghat - qnorm(0.975) * stde,
+         ci.upper = ghat + qnorm(0.975) * stde,
+         ci.cov = g.true >= ci.lower & g.true <= ci.upper,
+         bcci.lower = ghat - qnorm(0.975) * bste,
+         bcci.upper = ghat + qnorm(0.975) * bste,
+         bcci.cov = g.true >= bcci.lower & g.true <= bcci.upper)
+
+```
+
+We first check for simulations with errors.
+
+```{r}
+
+# summarize proportion of missing data by setting
+sim.out.long %>% 
+  filter(param == 1) %>% 
+  group_by(method, n, vare, B) %>% 
+  summarise(prop.error = mean(is.na(ghat))) %>% 
+  filter(prop.error > 0) %>% 
+  ungroup()
+
+```
+
+### Plots of simulation results
+
+Below are boxplots of the empirical distributions of estimators for $\pmb{\gamma}$.
+
+```{r}
+
+# extract simulation parameters
+n <- unique(sim.out$n)
+B <- unique(sim.out$B)
+vare <- unique(sim.out$vare)
+
+# make labels for plots
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+B.labs <- paste0("B = ", B)
+names(B.labs) <- B
+
+vare.labs <- paste0("var(e) = ", vare)
+names(vare.labs) <- vare
+
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
+names(param.labs) <- 1:4
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
+
+```
+
+```{r}
+
+# create plots
+make.plot <- function(title = T, y.lim = Inf, vare. = vare) {
+  
+  plot <- sim.out.long %>% 
+    filter(abs(ghat - g.true) < y.lim,
+           vare %in% vare.) %>% 
+    ggplot(
+    aes(x = method,
+        y = ghat,
+        fill = method,
+        color = method)) +
+    geom_boxplot() +
+    stat_summary(fun = mean,
+                 geom = "point",
+                 shape = 8,
+                 size = 2,
+                 orientation = "x",
+                 show.legend = F) +
+    geom_hline(aes(yintercept = g.true),
+               linetype = "dashed",
+               color = "orange") +
+    facet_nested(param ~ vare + B + n,
+                 scales = "free",
+                 labeller = labeller(n = n.labs,
+                                     vare = vare.labs,
+                                     B = B.labs,
+                                     param = param.labs)) +
+    #facet_grid(n ~ param,
+    #           scales = "free",
+    #           labeller = labeller(n = n.labs,
+    #                               param = param.labs)) +
+    labs(y = "Parameter Estimate",
+         fill = "Method",
+         color = "Method") +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_manual(values = pal_light) +
+    scale_color_manual(values = pal_dark)
+  
+  if (title) {
+    plot <- plot + 
+      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+            subtitle = paste0(n.rep, " simulations per setting"))
+  }
+  return(plot)
+}
+
+```
+
+```{r}
+
+make.plot()
+
+```
+
+### Table of Simulation Results
+
+Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the 95% CIs corresponding to $\widehat{\pmb{\gamma}}$, for naive and corrected methods, and for $n \in \{800, 8000\}$.
+
+```{r}
+
+tbl <- sim.out.long %>% 
+  filter(n %in% c(800, 8000)) %>% 
+  mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
+  group_by(n, method, Param) %>% 
+  summarise(bias = 100 * mean(ghat - g.true, na.rm = T),
+            emp.se = 100 * sd(ghat, na.rm = T),
+            est.se = 100 * mean(stde),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bste, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
+
+kbl <- tbl %>% 
+  kable(format = "latex",
+        digits = c(0, 0, 0,
+                   1, 1,
+                   1, 1,
+                   1, 1),
+        align = c(rep("c", 3 + 2),
+                  rep("r", 4)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "Method", "Parameter",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov")) %>%
+  add_header_above(c(" " = 5 + 2,
+                     "UC" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+tbl
+  
+```
+
+Below the same table with $n=400$.
+
+```{r}
+
+tbl2 <- sim.out.long %>% 
+  filter(n %in% c(400)) %>% 
+  mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
+  group_by(n, method, Param) %>% 
+  summarise(bias = 100 * mean(ghat - g.true, na.rm = T),
+            emp.se = 100 * sd(ghat, na.rm = T),
+            est.se = 100 * mean(stde),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bste, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
+
+kbl2 <- tbl2 %>% 
+  kable(format = "latex",
+        digits = c(0, 0, 0,
+                   1, 1,
+                   1, 1,
+                   1, 1),
+        align = c(rep("c", 3),
+                  rep("r", 4)),
+        booktabs = TRUE,
+        linesep = c("", "", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "Method", "Parameter",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov")) %>%
+  add_header_above(c(" " = 4,
+                     "UC" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+tbl2
+
+```
+

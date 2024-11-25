@@ -130,7 +130,8 @@ get.SW <- function(data,
                     0)
 
   # PS model matrix
-  modmat <- mod.mat(terms(as.formula(ps.formula)), data = data)
+  modmat <- mod.mat(trms = terms(as.formula(ps.formula)),
+                    data = data)
 
   # standardized weights
   SW <- sqrt(prod(var.a.l) / det(as.matrix(cov.a))) *

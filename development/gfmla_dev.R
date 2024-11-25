@@ -31,7 +31,6 @@ load_all()
 
 seed <- 3                                       # random seed
 n <- 800                                        # sample size
-B <- 80                                         # MC replicates
 cov.e <- 0.25                                   # var(epsilon)
 mc.seed <- 123                                  # MC seed
 inv.link <- inv.logit                           # inverse link
@@ -54,6 +53,19 @@ a <- seq(min(A), max(A), length = 3)             # exposure values of interest
 dat0 <- data.frame(Y, A, L1, L2)                 # oracle data
 datstar <- data.frame(Y, Astar, L1, L2)          # mismeasured data
 colnames(dat0) <- colnames(datstar) <- c("Y", "A", "L1", "L2")
+
+# search over grid of B values for MCCS -----------------------------------
+
+B.tuning <- tune.B(
+  get.psi = get.psi.glm,
+  data = datstar,
+  cov.e = cov.e,
+  BB = seq(2, 200, by = 5)
+)
+
+B.tuning$plot
+
+B <- 80                                         # MC replicates
 
 # estimate E{Y(a)} at grid of a -------------------------------------------
 
@@ -89,16 +101,24 @@ glm.naive <- glm(
 glm.simex <- simex::simex(
   model = glm.naive,
   SIMEXvariable = "A",
-  measurement.error = cov.e,
-  jackknife.estimation = F
+  measurement.error = sqrt(cov.e),
+  jackknife.estimation = F,
+  asymptotic = F
 )
 
+
 plot(glm.simex)
-glm.simex$coefficients
-gfmla.oracle$est
+round(gfmla.oracle$est, 2)
+round(glm.simex$coefficients, 2)
+
+ggplot(NULL,
+       aes(x = head(gfmla.oracle$est, 6),
+           y = glm.simex$coefficients)) +
+  geom_point() +
+  geom_abline(slope = 1)
 
 # use simex GLM results to fit g-fmla
-simex.predict <- do.call(rbind,lapply(a, function(aa) mutate(datstar, A = aa)))
+simex.predict <- do.call(rbind, lapply(a, function(aa) mutate(datstar, A = aa)))
 simex.predict$Yhat <- predict(glm.simex,
                               newdata = simex.predict,
                               type = "response",

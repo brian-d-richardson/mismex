@@ -1,0 +1,122 @@
+#' run one IPW simulation with a trivariate exposure, binary outcome, a linear
+#'  link function, and non-additive measurement error
+#'
+#' @inheritParams sim.gfmla
+#'
+#' @return a named numeric vector with the following entries
+#' \itemize{
+#' \item{n}
+#' \item{vare}
+#' \item{B}
+#' \item{seed}
+#' \item{ghat.OL: oracle linear regression estinates}
+#' \item{ghat.NL: naive linear regression estinates}
+#' \item{ghat.CL: corrected linear regression estinates}
+#' \item{ghat.OG: oracle IPW estinates}
+#' \item{ghat.NG: naive IPW estinates}
+#' \item{ghat.CG: corrected IPW estinates}
+#' \item{stde.OL: oracle linear regression standard errors}
+#' \item{stde.NL: naive linear regression standard errors}
+#' \item{stde.CL: corrected linear regression standard errors}
+#' \item{stde.OG: oracle IPW standard errors}
+#' \item{stde.NG: naive IPW standard errors}
+#' \item{stde.CG: corrected IPW standard errors}
+#' }
+#'
+#' @export
+sim.ipw.nonadd <- function(n, B, seed) {
+
+  ## for troubleshooting
+  #library(MASS); library(devtools); load_all()
+  #n = 800; B = 20; seed = 1;
+  #n = 800; B = 2; seed = 1;
+
+  vare <- 0.05
+  gg <- c(0.4, 0.15, 0.15, 0.2,
+          0.1, 0.1, 0, -0.1)                     # Y|A,L parameters
+  glm.formula <- "~A1*L + A2*L + A3*L"           # Y|A,L model formula
+  ipw.formula <- "~A1 + A2 + A3"                 # MSM formula
+  ps.formula <- "~L"                             # PS model formula
+  inv.link <- inv.ident;                         # MSM link function
+  d.inv.link <- d.inv.ident;                     # MSM derivative of link
+  cov.e <- diag(c(vare, vare, 0))                # measurement error variance
+  mc.seed <- 123                                 # MCCS seed value
+  coef.a.l <- matrix(
+    data = c(0, 0.4, 0, -0.4, 0.2, -0.1),        # coefs in A|L model
+    nrow = 3, byrow = T)
+  var.a.l <- c(0.09, 0.09, 0.09)                 # variance of A|L
+
+  ## generate data
+
+  set.seed(seed)                                 # seed for reproducibility
+  L <- runif(n)                                  # confounder
+  A <- mvrnorm(n = n,                            # true exposure
+               mu = c(0, 0, 0),
+               Sigma = diag(var.a.l)) +
+    cbind(1, L) %*% t(coef.a.l)
+  colnames(A) = paste0("A", 1:3)
+
+  Astar <- A                                     # mismeasured exposure
+  Astar[,1] <- A[,1] + rnorm(n, 0, sqrt(vare))   # additive ME for A1
+  Astar[,2] <- A[,2] * rnorm(n, 1, sqrt(0.34))   # multiplicative ME for A2
+  #apply(A, 2, var) - apply(Astar, 2, var)
+
+  Y_prob <- cbind(1, A, L, A*L) %*% gg           # mean of binary outcome
+  Y_prob[Y_prob < 0] <- 0                        # correct Y_prob in rare cases
+  Y_prob[Y_prob > 1] <- 1
+  Y <- rbinom(n, 1, Y_prob)                      # binary outcome
+  colnames(A) <- colnames(Astar) <- c("A1", "A2", "A3")
+  dat0 <- data.frame(Y, A, L)                    # oracle data
+  datstar <- data.frame(Y, Astar, L)             # mismeasured data
+
+  ## store values for estimation
+
+  len.A <- ncol(A)                               # dimension of A
+  mean.a <- colMeans(A)                          # marginal mean of A
+  cov.a <- cov(A)                                # marginal covariance of A
+  args.glm <- list(formula = glm.formula,        # arguments for fitting GLM
+                   inv.link = inv.link,
+                   d.inv.link = d.inv.link)
+  args.ipw <- list(formula = ipw.formula,        # arguments for fitting IPW
+                   ps.formula = ps.formula,
+                   inv.link = inv.link,
+                   d.inv.link = d.inv.link)
+
+  ## estimate MSM parameters
+
+  # (i) naive IPW estimator
+  res.NI <- fit.ipw(data = datstar,
+                    args = args.ipw)
+
+  # (ii) oracle IPW estimator
+  res.OI <- fit.ipw(data = dat0,
+                    args = args.ipw,
+                    start = res.NI$est[1:4])
+
+  # (iii) MCCS IPW estimator
+  res.CI <- fit.ipw.mccs(data = datstar,
+                         args = args.ipw,
+                         cov.e = cov.e, B = B, mc.seed = mc.seed,
+                         mean.a = colMeans(Astar),
+                         cov.a = cov(Astar) - cov.e,
+                         start = res.NI$est[1:4])
+
+  # combine results: estimates and std errors for 4 parameters
+  ret <- c(
+    n, vare, B, seed,
+    res.OI$est[1:4], res.NI$est[1:4], res.CI$est[1:4],
+    sqrt(c(
+      diag(res.OI$var)[1:4], diag(res.NI$var)[1:4], diag(res.CI$var)[1:4],
+      diag(res.OI$bc.var)[1:4], diag(res.NI$bc.var)[1:4], diag(res.CI$bc.var)[1:4]
+    )))
+
+  # return result (numeric vector of length 40)
+  names(ret) <- c(
+    "n", "vare", "B", "seed",
+    apply(tidyr::expand_grid(
+      c("ghat", "stde", "bste"),
+      c("OI", "NI", "CI"),
+      1:4), 1, paste, collapse="."))
+
+  return(ret)
+}

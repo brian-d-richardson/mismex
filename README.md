@@ -17,7 +17,8 @@ devtools::install_github(repo = "brian-d-richardson/mismex",
 
 ``` r
 ## load the package
-library(mismex)
+#library(mismex)
+library(devtools); load_all()
 
 ## load additional packages
 library(MASS)
@@ -60,7 +61,7 @@ described in the third simulation study:
 n = 2000                                  # sample size
 seed = 1                                  # random number seed
 mc.seed <- 123                            # MCCS seed
-cov.e <- 0.16                             # var(epsilon)
+cov.e <- 0.36                             # var(epsilon)
 inv.link <- inv.ident                     # inverse link
 d.inv.link <- d.inv.ident                 # derivative of inverse link
 g <- c(1.5, 0.7, 0.9, -0.6, -0.7, 0.4)    # outcome model parameters
@@ -86,11 +87,11 @@ head(datstar, 5)
 ```
 
     ##           Y          A L1        L2
-    ## 1 2.2186524  1.1634983  0 1.8025415
-    ## 2 2.5664615  1.7145178  0 1.7862545
-    ## 3 2.1174644  4.3731142  1 0.3842672
-    ## 4 2.8111597  1.7921312  1 1.1490097
-    ## 5 0.9702103 -0.4505236  0 1.0490701
+    ## 1 2.2186524  0.8984147  0 1.8025415
+    ## 2 2.5664615  1.9049138  0 1.7862545
+    ## 3 2.1174644  4.5451151  1 0.3842672
+    ## 4 2.8111597  2.0042892  1 1.1490097
+    ## 5 0.9702103 -0.5206404  0 1.0490701
 
 ### G-Formula Estimation
 
@@ -100,8 +101,8 @@ estimated here using the MCCS g-formula method.
 Before fitting the model, we determine an appropriate number of
 Monte-Carlo replicates $B$ in order for the G-formula MCCS function to
 approximate the CS function. We can do this by evaluating the MCCS
-function for a sequence of $B$ values, and at a particular parameter
-value, say the naive g-formula estimator (ignoring measurement error).
+function for a sequence of $B$ values at a particular parameter value,
+say the naive g-formula estimator (ignoring measurement error).
 
 ``` r
 ## g-formula arguments
@@ -114,40 +115,16 @@ gfmla.naive <- fit.glm(data = datstar,
                        args = gfmla.args,
                        return.var = F)$est
 
-## grid of possible B values
-B.grid <- seq(1, 50, by = 2)
+## assess MCCS estimating function over grid of B values
+gfmla.B.tuning <- tune.B(
+  get.psi = get.psi.glm,
+  data = datstar,
+  cov.e = cov.e,
+  BB = seq(1, 50, by = 2),
+  args = gfmla.args,
+  mc.seed = 123)
 
-## store psi and computation time B
-B.search <- vapply(
-  X = 1:length(B.grid),
-  FUN.VALUE = numeric(8),
-  FUN = function(ii) {
-
-    st <- Sys.time()
-    get.psi.glm.mccs <- make.mccs(
-      get.psi = get.psi.glm, data = datstar, args = gfmla.args,
-      cov.e = cov.e, B = B.grid[ii], mc.seed = mc.seed)
-    psi <- get.psi.glm.mccs(x = gfmla.naive)
-    et <- Sys.time()
-
-    return(c(B = B.grid[ii],
-             Time = et - st,
-             psi = psi))
-  }) %>%
-  t() %>%
-  as.data.frame() %>%
-  `colnames<-`(c("B", "Time", paste0("psi", 0:5))) %>% 
-  pivot_longer(cols = !B)
-
-## plot results
-ggplot(data = B.search,
-       aes(x = B,
-           y = value)) +
-  geom_line() +
-  facet_wrap(~ name,
-             scales = "free") +
-  labs(y = "") +
-  ggtitle("Score Values and Computation Time by Number of MC Replicates B")
+gfmla.B.tuning$plot
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
@@ -184,16 +161,16 @@ cbind(est = round(gfmla.res$est, 2),
 ```
 
     ##         est stde bc.stde
-    ## g.0    1.52 0.05    0.05
-    ## g.1    0.69 0.02    0.02
-    ## g.2    0.88 0.05    0.05
-    ## g.3   -0.58 0.03    0.03
-    ## g.4   -0.70 0.02    0.02
-    ## g.5    0.39 0.01    0.01
-    ## EYa.1 -0.48 0.06    0.06
-    ## EYa.2  1.57 0.02    0.02
+    ## g.0    1.51 0.07    0.07
+    ## g.1    0.70 0.03    0.03
+    ## g.2    0.86 0.06    0.06
+    ## g.3   -0.56 0.04    0.04
+    ## g.4   -0.70 0.03    0.03
+    ## g.5    0.39 0.02    0.02
+    ## EYa.1 -0.48 0.08    0.08
+    ## EYa.2  1.57 0.03    0.03
     ## EYa.3  3.62 0.03    0.03
-    ## EYa.4  5.67 0.07    0.07
+    ## EYa.4  5.67 0.08    0.08
 
 ### IPW Estimation
 
@@ -226,11 +203,11 @@ cbind(est = round(ipw.res$est, 2),
 ```
 
     ##                est stde bc.stde
-    ## g.0           1.78 0.19    0.21
-    ## g.1           0.55 0.09    0.09
-    ## coef.a.l.1    2.06 0.05    0.05
+    ## g.0           1.82 0.23    0.25
+    ## g.1           0.52 0.10    0.11
+    ## coef.a.l.1    2.07 0.05    0.05
     ## coef.a.l.2    0.88 0.05    0.05
-    ## coef.a.l.3   -0.66 0.04    0.04
+    ## coef.a.l.3   -0.67 0.04    0.04
     ## log.var.a.l1  0.13 0.04    0.04
 
 ### Double Robust Estimation
@@ -262,20 +239,20 @@ cbind(est = round(dr.res$est, 2),
 ```
 
     ##                est stde bc.stde
-    ## g.0           1.51 0.05    0.05
-    ## g.1           0.70 0.02    0.02
-    ## g.2           0.89 0.05    0.05
-    ## g.3          -0.59 0.03    0.03
-    ## g.4          -0.72 0.02    0.02
-    ## g.5           0.40 0.02    0.02
-    ## coef.a.l.1    2.06 0.05    0.05
+    ## g.0           1.49 0.07    0.07
+    ## g.1           0.72 0.03    0.03
+    ## g.2           0.90 0.07    0.07
+    ## g.3          -0.59 0.04    0.04
+    ## g.4          -0.74 0.03    0.04
+    ## g.5           0.42 0.02    0.02
+    ## coef.a.l.1    2.07 0.05    0.05
     ## coef.a.l.2    0.88 0.05    0.05
-    ## coef.a.l.3   -0.66 0.04    0.04
+    ## coef.a.l.3   -0.67 0.04    0.04
     ## log.var.a.l1  0.13 0.04    0.04
-    ## EYa.1        -0.52 0.07    0.07
-    ## EYa.2         1.56 0.02    0.02
-    ## EYa.3         3.64 0.03    0.03
-    ## EYa.4         5.72 0.07    0.07
+    ## EYa.1        -0.59 0.09    0.09
+    ## EYa.2         1.54 0.03    0.03
+    ## EYa.3         3.68 0.04    0.04
+    ## EYa.4         5.81 0.10    0.10
 
 ### Nonlinear Marginal Structural Model
 
@@ -347,21 +324,21 @@ cbind(est = round(gfmla.mccs.cubic$est, 2),
 ```
 
     ##          est stde bc.stde
-    ## g.0    -0.38 0.42    0.99
-    ## g.1     0.52 0.38    0.78
-    ## g.2     2.19 1.86    4.27
-    ## g.3    -1.80 1.38    3.19
-    ## g.4     1.09 0.12    0.14
-    ## EYa.1   3.63 2.59    5.80
-    ## EYa.2   1.32 0.70    1.44
-    ## EYa.3   0.29 0.25    0.60
-    ## EYa.4   0.15 0.39    0.93
-    ## EYa.5   0.50 0.16    0.34
-    ## EYa.6   0.94 0.23    0.51
-    ## EYa.7   1.06 0.37    0.88
-    ## EYa.8   0.47 0.16    0.14
-    ## EYa.9  -1.24 1.24    2.65
-    ## EYa.10 -4.47 3.55    7.96
+    ## g.0     0.30 0.07    0.07
+    ## g.1     0.18 0.23    0.24
+    ## g.2    -0.86 0.31    0.29
+    ## g.3     0.35 0.23    0.22
+    ## g.4     1.02 0.07    0.08
+    ## EYa.1  -0.58 0.51    0.49
+    ## EYa.2   0.20 0.23    0.23
+    ## EYa.3   0.64 0.10    0.10
+    ## EYa.4   0.80 0.06    0.06
+    ## EYa.5   0.78 0.07    0.07
+    ## EYa.6   0.64 0.08    0.09
+    ## EYa.7   0.48 0.06    0.06
+    ## EYa.8   0.35 0.12    0.13
+    ## EYa.9   0.35 0.41    0.42
+    ## EYa.10  0.56 0.91    0.93
 
 ### Case Cohort Sampling
 

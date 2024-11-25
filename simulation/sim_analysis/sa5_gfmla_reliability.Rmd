@@ -1,0 +1,250 @@
+---
+title: "Simulation 5: g-formula with varying reliability"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(kableExtra)
+library(devtools)
+load_all()
+
+```
+
+```{r warning = F}
+
+# load simulation results from each of 10 clusters
+setwd(dirname(getwd()))
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/sim5_gfmla_reliability/sd",
+                          clust, ".csv")))
+  })
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list)
+
+# true estimands
+g <- c(0, 0.25, 0.5, -0.5, 1)          # outcome model parameters
+a <- -1:2                                        # exposure value of interest
+EYa.true <- g[1] + 0.5*g[5] + a*g[2] + a^2*g[3] + a^3*g[4]
+
+# number of sims per setting
+n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, rel))
+
+# make long data frame
+sim.out.long <- sim.out %>% 
+  pivot_longer(cols = starts_with("est") | 
+                      starts_with("ste") |
+                      starts_with("bcs"), 
+               names_to = "method.aa",
+               values_to = "val") %>% 
+    mutate(method = factor(substr(method.aa, 5, 6),
+                           levels = c("NG", "CG"),
+                           labels = c("Naive G-Formula",
+                                      "G-Formula CS")),
+           aa = factor(substr(method.aa, 8, 8)),
+           a = factor(a[aa]),
+           name = factor(substr(method.aa, 1, 3)),
+           EYa.true = EYa.true[aa]) %>% 
+  dplyr::select(-method.aa) %>% 
+  group_by(clust, n, B, rel, method, aa, a, name) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_wider(names_from = name,
+              values_from = val,
+              id_cols = c(clust, n, B, rel, method, aa, a, EYa.true, id)) %>% 
+  mutate(ci.lower = est - qnorm(0.975) * ste,
+         ci.upper = est + qnorm(0.975) * ste,
+         ci.cov = EYa.true >= ci.lower & EYa.true <= ci.upper,
+         bcci.lower = est - qnorm(0.975) * bcs,
+         bcci.upper = est + qnorm(0.975) * bcs,
+         bcci.cov = EYa.true >= bcci.lower & EYa.true <= bcci.upper)
+
+```
+
+
+The goal of this program is to evaluate the G-formula CS estimator with a nonlinear outcome model and for a sequence of exposure reliability values.
+
+## Setup
+
+Consider the following setup:
+
+* single confounder $L_1 \sim U(0,1)$,
+* univariate continuous exposure $A$ with $A|L \sim N(L,)$,
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.09)$,
+* normal outcome $Y$ with $Y|A,L \sim N(0 + 0.25A, 0.5A^2, -0.5^2 + L, 0.16)$.
+
+This data generating process leads to a mean potential outcome at $a$ of $\textrm{E}\{Y(a)\} = 0.5 + 0.25a + 0.5a^2 - 0.5a^3$.
+
+The estimand of interest in these simulations is the dose response curve $\{\textrm{E}[Y(a)] : a \in \mathcal{A}\}$.
+
+## Methods
+
+In these simulations, we compare two methods:
+
+1) Naive G-Formula
+2) CS G-Formula
+
+The naive method treats $A^*$ as $A$, assuming there is no measurement error. The CS method uses the Monte-Carlo corrected score versions of the estimating functions.
+
+## Results
+
+We first check for simulations with errors.
+
+```{r message = F}
+
+# summarize proportion of missing data by setting
+sim.out.long %>% 
+  filter(aa == 1) %>% 
+  group_by(method, n, B, rel) %>% 
+  summarise(prop.error = mean(is.na(est))) %>% 
+  filter(prop.error > 0)
+
+```
+
+```{r}
+
+# extract simulation parameters
+n <- unique(sim.out$n)
+
+# make labels for plots
+method.labs <- c("Naive G-Formula",
+                 "G-Formula CS")
+
+names(method.labs) <- c("NG", "CG")
+
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+a.labs <- paste0("a = ", a)
+names(a.labs) <- a
+
+rel.lab = unique(round(sim.out.long$rel, 2))
+rel.lab[seq(2, n_distinct(rel.lab), 2)] <- ""
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
+
+```
+
+```{r}
+
+# create plots
+make.plot <- function(title = F, a. = 1) {
+
+  plot <- sim.out.long %>%
+    filter(aa == a.) %>% 
+    mutate(rel = factor(rel)) %>% 
+    ggplot(aes(x = rel, y = est, group = rel)) +
+    geom_boxplot(width = 0.7, outlier.size = 0.5) +
+    geom_hline(aes(yintercept = EYa.true),
+               linetype = "dashed",
+               color = "orange") +
+    facet_grid(n ~ method,
+               scales = "free", 
+               labeller = labeller(n = n.labs)) +
+    labs(y = "Parameter Estimate",
+         x = "Exposure Reliability",
+         fill = "Method",
+         color = "Method") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    scale_x_discrete(labels = rel.lab)
+
+  
+  if (title) {
+    plot <- plot +
+      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+              subtitle = paste0(n.rep, " simulations per setting"))
+
+  }
+  return(plot)
+}
+
+```
+
+
+```{r}
+
+# create plots
+make.plot.2 <- function(title = F, a. = 1) {
+  
+  plot <- sim.out.long %>% 
+    filter(aa == a.) %>% 
+    pivot_longer(cols = ends_with(".cov"), 
+                 names_to = "ci.type",
+                 values_to = "ci.cov") %>% 
+    mutate(ci.type = ifelse(ci.type == "bcci.cov",
+                            "Bias-Corrected",
+                            "Uncorrected")) %>% 
+    group_by(rel, n, method, ci.type) %>% 
+    summarise(cov = mean(ci.cov, na.rm = T)) %>% 
+    ggplot(aes(x = rel,
+               linetype = ci.type,
+               y = cov)) +
+    geom_line() +
+    geom_hline(yintercept = 0.95,
+               linetype = "dashed",
+               color = "orange") +
+    facet_grid(n ~ method,
+               scales = "free", 
+               labeller = labeller(n = n.labs)) +
+    labs(y = "Coverage Probability",
+         x = "Exposure Reliability",
+         linetype = "CI Type") +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  
+  if (title) {
+    plot <- plot +
+      ggtitle(paste0("Empirical Coverage Probabilities of 95% Confidence Intervals"),
+              subtitle = paste0(n.rep, " simulations per setting"))
+
+  }
+  return(plot)
+}
+
+```
+
+### Plots of Simulation Results
+
+Below are boxplots of the empirical distributions of estimators for $\textrm{E}\{Y(a)\}$ at $a=1$, and plots of coverage probabilities of confidence intervals.
+
+```{r warning = F, message = F, eval = T}
+
+make.plot()
+
+# save plot
+setwd(dirname(getwd()))
+ggsave("sim_figures/sim5_gfmla_reliability_1.png",
+       width = 6,
+       height = 4,
+       dpi = 300)
+
+```
+
+```{r warning = F, message = F, eval = T}
+
+make.plot.2()
+
+# save plot
+setwd(dirname(getwd()))
+ggsave("sim_figures/sim5_gfmla_reliability_2.png",
+       width = 6,
+       height = 4,
+       dpi = 300)
+
+```
+
