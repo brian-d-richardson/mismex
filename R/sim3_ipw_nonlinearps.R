@@ -23,12 +23,11 @@ sim3.ipw.nonlinearps <- function(
   # for troubleshooting -----------------------------------------------------
 
   #library(MASS); library(devtools); load_all()
-  #n = 800; vare = 0.09; B = 80; seed = 1;
+  #n = 800; vare = 0.05; B = 80; seed = 1;
 
   # define parameters -------------------------------------------------------
 
   gg <- c(2, 1.5, -1.5, -2, 1, 1)                # Y|A,L parameters
-  glm.formula <- "~A1*L + A2*L"                  # Y|A,L model formula
   ipw.formula <- "~A1 + A2"                      # MSM formula
   ps.formula <- "~L+ I(L^2)"                     # PS model formula
   inv.link <- inv.ident;                         # MSM link function
@@ -40,7 +39,7 @@ sim3.ipw.nonlinearps <- function(
              0, 0,
              1, -1),
     nrow = 3, byrow = T)
-  var.a.l <- c(0.25, 0.25)                       # variance of A|L
+  var.a.l <- c(0.09, 0.09)                       # variance of A|L
 
   # simulate data -----------------------------------------------------------
 
@@ -60,15 +59,13 @@ sim3.ipw.nonlinearps <- function(
   dat0 <- data.frame(Y, A, L)                    # oracle data
   datstar <- data.frame(Y, Astar, L)             # mismeasured data
 
+  #plot(L, A[,1]); plot(L, A[,2]); apply(A, 2, var) / apply(Astar, 2, var)
 
   # store values for estimation ---------------------------------------------
 
   len.A <- ncol(A)                               # dimension of A
   mean.a <- colMeans(A)                          # marginal mean of A
-  cov.a <- cov(A)                                # marginal covariance of A
-  args.glm <- list(formula = glm.formula,        # arguments for fitting GLM
-                   inv.link = inv.link,
-                   d.inv.link = d.inv.link)
+  cov.a <- cov(A)*(n-1)/n                        # marginal covariance of A
   args.ipw <- list(formula = ipw.formula,        # arguments for fitting IPW
                    ps.formula = ps.formula,
                    inv.link = inv.link,
@@ -78,7 +75,7 @@ sim3.ipw.nonlinearps <- function(
   # estimate E(A | Astar) for regression calibration ------------------------
 
   # estimate means and covariances
-  E.A <- colMeans(datstar[,c("A1","A2")])            # E(A)                          # E(A)
+  E.A <- colMeans(datstar[,c("A1","A2")])            # E(A)
   E.L <- mean(datstar$L)                             # E(L)
   Sigma.AA <- cov(datstar[,c("A1","A2")]) - cov.e    # Cov(A)
   Sigma.LA <- cov(datstar[,c("A1","A2")], datstar$L) # Cov(A, L)

@@ -64,30 +64,35 @@ fit.ipw <- function(data, args,
     model.a.l <- lm(as.formula(paste0("A", ps.formula)),
                     data = data, weights = cc.wts)
     coef.a.l <- t(coef(model.a.l))
-    var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var)
+    var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) *
+      (n-1) / n
   }
 
   # solve IPW equation
-  root <- #tryCatch(
-    #expr =
+  root <- tryCatch(
+    expr =
     rootSolve::multiroot(
       f = function(x) {
         get.psi.ipw(
           data = data, g = c(x, c(coef.a.l), log(var.a.l)),
           mean.a = mean.a, cov.a = cov.a, args = args) },
-      start = start)$root#,
-    #warning = function(w) {message(w); rep(NA, len.msm)},
-    #error = function(e) {message(e); rep(NA, len.msm)})
+      start = start)$root,
+    warning = function(w) {message(w); rep(NA, len.msm)},
+    error = function(e) {message(e); rep(NA, len.msm)})
 
   # combine MSM and PS model parameters
-  est <- c(root, coef.a.l, log(var.a.l))
+  est <- c(root,                                       # MSM
+           coef.a.l, log(var.a.l),                     # A|L model
+           mean.a, cov.a[upper.tri(cov.a, diag = T)])  # A model
   names(est) <- c(
     paste0("g.", 0:(len.msm - 1)),
     paste0("coef.a.l.", 1:(len.A*len.ps)),
-    paste0("log.var.a.l", 1:len.A))
+    paste0("log.var.a.l", 1:len.A),
+    paste0("mean.a.", 1:len.A),
+    paste0("cov.a.", 1:(len.A * (len.A + 1) / 2)))
 
   # sandwich variance estimates including PS model
-  evar <- matrix(NA, len.msm + len.ps, len.msm + len.ps)
+  evar <- matrix(NA, length(est), length(est))
   if (return.var) {
     evar <- tryCatch(
       expr = get.sand.est(
@@ -96,7 +101,11 @@ fit.ipw <- function(data, args,
         get.psi = function(x) {
           coef.a.l <- matrix(x[len.msm + 1:(len.A*len.ps)],
                              ncol = len.ps, byrow = F)
-          var.a.l <- exp(tail(x, len.A))
+          var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
+          mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
+          cov.a <- matrix(0, len.A, len.A)
+          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
+          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
           cbind(
             get.psi.ipw(
               data = data, g = x, args = args,
@@ -105,13 +114,18 @@ fit.ipw <- function(data, args,
             get.psi.ps(
               data = data, ps.formula = ps.formula,
               coef.a.l = coef.a.l, var.a.l = var.a.l,
-              return.sums = F)) }),
+              return.sums = F),
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a =
+                mean.a,return.sums = F
+            )) }),
       warning = function(w) {message(w); evar},
       error = function(e) {message(e); evar})
   }
 
   # bias corrected variance estimator
-  bc.evar = matrix(NA, len.msm + len.ps, len.msm + len.ps)
+  bc.evar = matrix(NA, length(est), length(est))
   if (return.bcvar) {
     bc.evar <- tryCatch(
       expr = get.sand.est.bc(
@@ -120,7 +134,11 @@ fit.ipw <- function(data, args,
         get.psi = function(x) {
           coef.a.l <- matrix(x[len.msm + 1:(len.A*len.ps)],
                              ncol = len.ps, byrow = F)
-          var.a.l <- exp(tail(x, len.A))
+          var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
+          mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
+          cov.a <- matrix(0, len.A, len.A)
+          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
+          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
           cbind(
             get.psi.ipw(
               data = data, g = x, args = args,
@@ -129,7 +147,12 @@ fit.ipw <- function(data, args,
             get.psi.ps(
               data = data, ps.formula = ps.formula,
               coef.a.l = coef.a.l, var.a.l = var.a.l,
-              return.sums = F)) }),
+              return.sums = F),
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a =
+                mean.a,return.sums = F
+            )) }),
       warning = function(w) {message(w); bc.evar },
       error = function(e) {message(e); bc.evar })
   }
@@ -191,7 +214,6 @@ fit.ipw.mccs <- function(data, args,
   # set starting value if not supplied
   if (is.null(start)) { start <- rep(0, len.msm) }
 
-
   # compute marginal mean and covariance of A if not supplied
   if (is.null(mean.a)) { mean.a <- colMeans(as.matrix(A)) }
   if (is.null(cov.a)) {
@@ -207,7 +229,8 @@ fit.ipw.mccs <- function(data, args,
     model.a.l <- lm(as.formula(paste0("A", ps.formula)),
                     data = data, weights = cc.wts)
     coef.a.l <- t(coef(model.a.l))
-    var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) -
+    var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) *
+      (n-1) / n -
       d.cov.e
   }
 
@@ -225,8 +248,8 @@ fit.ipw.mccs <- function(data, args,
     cov.e = cov.e, B = B, mc.seed = mc.seed)
 
   # Solve MCCS IPW equation
-  root <- #tryCatch(
-    #expr =
+  root <- tryCatch(
+    expr =
     rootSolve::multiroot(
       f = function(xx) {
         if (is.null(ps.wts)) {
@@ -235,17 +258,20 @@ fit.ipw.mccs <- function(data, args,
           x <- xx
         }
         get.psi.ipw.mccs(x = x) },
-      start = root.naive)$root#,
-    #warning = function(w) {message(w); rep(NA, len.msm)},
-   # error = function(e) {message(e); rep(NA, len.msm)})
+      start = root.naive)$root,
+    warning = function(w) {message(w); rep(NA, len.msm)},
+    error = function(e) {message(e); rep(NA, len.msm)})
 
   # combine MSM and PS model parameters
-  est <- c(root, coef.a.l, log(var.a.l))
+  est <- c(root,                                       # MSM
+           coef.a.l, log(var.a.l),                     # A|L model
+           mean.a, cov.a[upper.tri(cov.a, diag = T)])  # A model
   names(est) <- c(
     paste0("g.", 0:(len.msm - 1)),
     paste0("coef.a.l.", 1:(len.A*len.ps)),
-    paste0("log.var.a.l", 1:len.A))
-
+    paste0("log.var.a.l", 1:len.A),
+    paste0("mean.a.", 1:len.A),
+    paste0("cov.a.", 1:(len.A * (len.A + 1) / 2)))
 
   # sandwich variance estimates including PS model if requested
   evar <- matrix(NA, length(est), length(est))
@@ -255,14 +281,24 @@ fit.ipw.mccs <- function(data, args,
         ghat = est,
         n = n,
         get.psi = function(x) {
-            cbind(
-              get.psi.ipw.mccs(x = x, return.sums = F),
-              get.psi.ps(
-                data = data, ps.formula = ps.formula,
-                coef.a.l = matrix(x[len.msm + 1:(len.A*len.ps)],
-                                  ncol = len.ps, byrow = F),
-                var.a.l = exp(tail(x, len.A)),
-                return.sums = F)) }),
+          coef.a.l <- matrix(x[len.msm + 1:(len.A*len.ps)],
+                             ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
+          mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
+          cov.a <- matrix(0, len.A, len.A)
+          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
+          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          cbind(
+            get.psi.ipw.mccs(x = x, return.sums = F),
+            get.psi.ps(
+              data = data, ps.formula = ps.formula,
+              coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a =
+                mean.a,return.sums = F
+            )) }),
         warning = function(w) {message(w); evar},
         error = function(e) {message(e); evar})
   }
@@ -275,16 +311,26 @@ fit.ipw.mccs <- function(data, args,
         ghat = est,
         n = n,
         get.psi = function(x) {
+          coef.a.l <- matrix(x[len.msm + 1:(len.A*len.ps)],
+                             ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
+          mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
+          cov.a <- matrix(0, len.A, len.A)
+          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
+          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
           cbind(
             get.psi.ipw.mccs(x = x, return.sums = F),
             get.psi.ps(
               data = data, ps.formula = ps.formula,
-              coef.a.l = matrix(x[len.msm + 1:(len.A*len.ps)],
-                                ncol = len.ps, byrow = F),
-              var.a.l = exp(tail(x, len.A)),
-              return.sums = F)) }),
+              coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a =
+                mean.a,return.sums = F
+            )) }),
       warning = function(w) {message(w); bc.evar },
-      error = function(e) {message(e); bc.evar })
+    error = function(e) {message(e); bc.evar })
   }
 
   return(list(est = est,

@@ -103,6 +103,62 @@ get.psi.ps <- function(data, ps.formula, coef.a.l, var.a.l, return.sums = T) {
   }
 }
 
+#' Propensity score numerator estimating function
+#'
+#' @inheritParams get.psi.glm
+#'
+#' @param cov.a a numeric matrix, covariance of A
+#' @param mean.a a numeric vector, mean of A
+#'
+#' @return individual or summation estimating function values
+#'
+#' @export
+get.psi.ps.num <- function(data, cov.a, mean.a, return.sums = T) {
+
+  n <- nrow(data)                                   # sample size
+  ind.A <- grepl("A", colnames(data))               # exposure columns
+  A <- as.matrix(data[,ind.A])
+  len.A <- ncol(A)                                  # dimension of exposure
+
+  ## case-control weights
+  if ("cc.wts" %in% colnames(data)) {
+    cc.wts <- data$cc.wts
+  } else {
+    cc.wts <- rep(1, n)
+  }
+
+  # residuals
+  rsd <- A - matrix(mean.a, nrow = n, ncol = len.A, byrow = T)
+
+  aa <- t(vapply(
+    X = 1:n,
+    FUN.VAL = numeric(len.A * (len.A + 1) / 2),
+    FUN = function(ii) {
+      xx <- rsd[ii,]
+      xxo <- outer(xx, xx)
+      xxo[upper.tri(xxo, diag = T)] - cov.a[upper.tri(cov.a, diag = T)]
+      }))
+
+  psi.ps.num <- cbind(
+    rsd,      # mean
+    t(vapply( # covariance
+      X = 1:n,
+      FUN.VAL = numeric(len.A * (len.A + 1) / 2),
+      FUN = function(ii) {
+        xx <- rsd[ii,]
+        xxo <- outer(xx, xx)
+        xxo[upper.tri(xxo, diag = T)] - cov.a[upper.tri(cov.a, diag = T)]
+      }))) *
+    cc.wts
+
+  if (return.sums) {
+    return(colSums((psi.ps.num)))
+  } else {
+    return(psi.ps.num)
+  }
+}
+
+
 
 #' Compute standardized IP weights for multivariate normal exposure
 #'

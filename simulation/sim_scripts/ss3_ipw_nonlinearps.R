@@ -24,16 +24,16 @@ load_all()
 # simulation parameters ---------------------------------------------------
 
 # baseline seed (specific to cluster)
-args <- 1#commandArgs(TRUE)
+args <- commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
 n.sim <- 1
 
 # varied parameters
-n <- c(400, 800, 8000)            # sample size
+n <- 800#c(400, 800, 8000)            # sample size
 B <- 80                           # number of MC replicates
-k <- c(10, 100)#c(2, 6, 10, 14, 18)                # number of replicate exposure measurements
+vare <- 0.05                # number of replicate exposure measurements
 
 # run simulations ---------------------------------------------------------
 

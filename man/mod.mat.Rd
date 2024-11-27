@@ -2,7 +2,7 @@
 % Please edit documentation in R/model_matrix.R
 \name{mod.mat}
 \alias{mod.mat}
-\title{Create model matrix with complex numbers}
+\title{Create model matrix for A|L model with complex numbers}
 \usage{
 mod.mat(trms, data)
 }
@@ -21,5 +21,5 @@ mod.mat(trms, data)
 model matrix
 }
 \description{
-Create model matrix with complex numbers
+Create model matrix for A|L model with complex numbers
 }
