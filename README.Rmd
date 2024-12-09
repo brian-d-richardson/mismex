@@ -28,7 +28,7 @@ devtools::install_github(repo = "brian-d-richardson/mismex",
 
 ## load the package
 library(mismex)
-library(devtools);
+library(devtools)
 
 ## load additional packages
 library(MASS)

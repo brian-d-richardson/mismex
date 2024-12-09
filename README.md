@@ -17,8 +17,8 @@ devtools::install_github(repo = "brian-d-richardson/mismex",
 
 ``` r
 ## load the package
-#library(mismex)
-library(devtools); load_all()
+library(mismex)
+library(devtools)
 
 ## load additional packages
 library(MASS)
@@ -176,10 +176,10 @@ cbind(est = round(gfmla.res$est, 2),
 
 Parameters $\pmb{\gamma} = (\gamma_0, \gamma_1)$ in the marginal
 structural model, as well as coefficients and variance in the propensity
-score model $A|\pmb{L}$, are estimated here using the MCCS IPW method.
-We use the same number of MC replicates $B=30$ as for IPW, but a similar
-strategy as with g-formula could be used to tune this to an appropriate
-number.
+score models for $A|\pmb{L}$ and $A$, are estimated here using the MCCS
+IPW method. We use the same number of MC replicates $B=30$ as for IPW,
+but a similar strategy as with g-formula could be used to tune this to
+an appropriate number.
 
 ``` r
 ## IPW arguments
@@ -209,6 +209,8 @@ cbind(est = round(ipw.res$est, 2),
     ## coef.a.l.2    0.88 0.05    0.05
     ## coef.a.l.3   -0.67 0.04    0.04
     ## log.var.a.l1  0.13 0.04    0.04
+    ## mean.a.1      1.82 0.03    0.03
+    ## cov.a.1       1.58 0.06    0.06
 
 ### Double Robust Estimation
 
@@ -249,6 +251,8 @@ cbind(est = round(dr.res$est, 2),
     ## coef.a.l.2    0.88 0.05    0.05
     ## coef.a.l.3   -0.67 0.04    0.04
     ## log.var.a.l1  0.13 0.04    0.04
+    ## mean.a.1      1.82 0.03    0.03
+    ## cov.a.1       1.58 0.06    0.06
     ## EYa.1        -0.59 0.09    0.09
     ## EYa.2         1.54 0.03    0.03
     ## EYa.3         3.68 0.04    0.04
@@ -436,22 +440,31 @@ cbind(est = round(dr.cc.mccs$est, 2),
     ## g.1           0.42 0.31    0.34
     ## g.2          -0.01 0.40    0.44
     ## g.3           0.53 0.19    0.22
-    ## g.4           0.22 0.20    0.22
-    ## g.5          -0.20 0.55    0.62
+    ## g.4           0.22 0.20    0.23
+    ## g.5          -0.21 0.55    0.62
     ## g.6          -0.10 0.63    0.71
-    ## g.7          -0.64 0.39    0.46
+    ## g.7          -0.64 0.40    0.46
     ## coef.a.l.1    0.02 0.05    0.05
     ## coef.a.l.2    0.02 0.04    0.04
     ## coef.a.l.3    0.17 0.04    0.04
     ## coef.a.l.4    0.39 0.08    0.08
     ## coef.a.l.5   -0.42 0.07    0.08
     ## coef.a.l.6   -0.07 0.06    0.06
-    ## log.var.a.l1 -2.41 0.12    0.12
+    ## log.var.a.l1 -2.41 0.13    0.13
     ## log.var.a.l2 -2.33 0.11    0.11
     ## log.var.a.l3 -2.31 0.08    0.08
+    ## mean.a.1      0.24 0.02    0.02
+    ## mean.a.2     -0.19 0.02    0.02
+    ## mean.a.3      0.17 0.02    0.02
+    ## cov.a.1       0.10 0.01    0.01
+    ## cov.a.2      -0.02 0.01    0.01
+    ## cov.a.3       0.11 0.01    0.01
+    ## cov.a.4       0.00 0.01    0.01
+    ## cov.a.5       0.01 0.01    0.01
+    ## cov.a.6       0.10 0.01    0.01
     ## EYa.1         0.39 0.06    0.06
     ## EYa.2         0.48 0.04    0.04
-    ## EYa.3         0.59 0.06    0.06
+    ## EYa.3         0.59 0.07    0.07
 
 ## Application to HVTN 505 Trial Data
 
