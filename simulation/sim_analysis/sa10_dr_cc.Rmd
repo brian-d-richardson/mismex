@@ -81,7 +81,7 @@ Consider the following setup:
 * univariate exposure $A$, where $A|L \sim N(0.1 - 0.1L_1 + 0.3L_2, 0.04)$
 * binary outcome $Y$, with $Y|A,L \sim \textrm{Bernoulli}(0.35 + 0.15A + 0.25L_1 + 0.2L_2 + 0.05AL_1 + 0.1AL_2)$
 * resulting MSM $\eta(a) = \textrm{E}\{Y(a)\} = \gamma_0 + \gamma_1a$, where $\pmb{\gamma} = (\gamma_0, \gamma_1)^T = (0.475, 0.175)^T$
-* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.01)$
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.02)$
 
 The estimand of interest in these simulations is $\gamma_1$.
 

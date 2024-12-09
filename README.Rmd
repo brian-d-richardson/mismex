@@ -27,7 +27,7 @@ devtools::install_github(repo = "brian-d-richardson/mismex",
 ```{r, message = F}
 
 ## load the package
-#library(mismex)
+library(mismex)
 library(devtools);
 
 ## load additional packages
@@ -148,7 +148,7 @@ cbind(est = round(gfmla.res$est, 2),
 
 ### IPW Estimation
 
-Parameters $\pmb{\gamma} = (\gamma_0, \gamma_1)$ in the marginal structural model, as well as coefficients and variance in the propensity score model $A|\pmb{L}$, are estimated here using the MCCS IPW method. We use the same number of MC replicates $B=30$ as for IPW, but a similar strategy as with g-formula could be used to tune this to an appropriate number.
+Parameters $\pmb{\gamma} = (\gamma_0, \gamma_1)$ in the marginal structural model, as well as coefficients and variance in the propensity score models for $A|\pmb{L}$ and $A$, are estimated here using the MCCS IPW method. We use the same number of MC replicates $B=30$ as for IPW, but a similar strategy as with g-formula could be used to tune this to an appropriate number.
 
 ```{r}
 
