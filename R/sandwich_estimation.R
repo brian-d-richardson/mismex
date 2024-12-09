@@ -22,7 +22,6 @@ get.sand.est <- function(ghat, get.psi, n) {
                   nrow = length(ghat))
 
   # sandwich estimator
-  #sqrt(diag(Dinv %*% Omega %*% t(Dinv) / n)[1:4])
   return(Dinv %*% Omega %*% t(Dinv) / n)
 }
 

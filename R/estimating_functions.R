@@ -139,16 +139,19 @@ get.psi.ps.num <- function(data, cov.a, mean.a, return.sums = T) {
       xxo[upper.tri(xxo, diag = T)] - cov.a[upper.tri(cov.a, diag = T)]
       }))
 
+  cov.term <- vapply(
+    X = 1:n,
+    FUN.VAL = numeric(len.A * (len.A + 1) / 2),
+    FUN = function(ii) {
+      xx <- rsd[ii,]
+      xxo <- outer(xx, xx)
+      xxo[upper.tri(xxo, diag = T)] - cov.a[upper.tri(cov.a, diag = T)]
+    })
+  if (len.A > 1) {cov.term <- t(cov.term)}
+
   psi.ps.num <- cbind(
-    rsd,      # mean
-    t(vapply( # covariance
-      X = 1:n,
-      FUN.VAL = numeric(len.A * (len.A + 1) / 2),
-      FUN = function(ii) {
-        xx <- rsd[ii,]
-        xxo <- outer(xx, xx)
-        xxo[upper.tri(xxo, diag = T)] - cov.a[upper.tri(cov.a, diag = T)]
-      }))) *
+    rsd,        # mean
+    cov.term) * # covariance
     cc.wts
 
   if (return.sums) {
@@ -179,6 +182,7 @@ get.SW <- function(data,
 
   # invert covariance of A
   cov.a.inv <- solve(cov.a)
+  var.a.l.inv <- diag(var.a.l ^ -1, nrow = length(var.a.l))
 
   # set function value type (real or complex)
   fun.val <- ifelse(is.complex(ifelse(is.vector(A), A[1], A[1, 1])),
@@ -194,9 +198,10 @@ get.SW <- function(data,
     exp(0.5 *
           vapply(X = 1:n, FUN.VALUE = fun.val, FUN = function(ii) {
             o1 <- A[ii,] - modmat[ii,] %*% t(coef.a.l)
-            i1 <- diag(var.a.l ^ -1, nrow = length(var.a.l))
+            i1 <-
             o2 <- t(A[ii,] - mean.a)
-            o1 %*% i1 %*% t(o1) - o2 %*% cov.a.inv %*% t(o2)
+            o1 %*% var.a.l.inv %*% t(o1) -
+              o2 %*% cov.a.inv %*% t(o2)
           }))
 
   return(SW)
@@ -245,7 +250,7 @@ get.psi.ipw <- function(data, g, args, mean.a, cov.a, return.sums = T) {
   # extract PS model params
   coef.a.l <- matrix(g[len.msm + 1:(len.A*len.ps)],
                      ncol = len.ps, byrow = F)
-  var.a.l <- exp(tail(g, len.A))
+  var.a.l <- exp(g[len.msm + (len.A*len.ps) + 1:len.A])
 
   # PS weights
   ps.wts <- get.SW(data = data, ps.formula = ps.formula,

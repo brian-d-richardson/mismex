@@ -1,0 +1,300 @@
+---
+title: "Simulation 8: IPW with multiplicative measurement error"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(kableExtra)
+library(devtools)
+load_all()
+
+```
+
+```{r warning = F}
+
+# load simulation results from each of 10 clusters
+setwd(dirname(getwd()))
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/sim8_ipw_multiplicative/sd",
+                          clust, ".csv")))
+  })
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list)
+
+# true MSM parameters
+g <- c(0, 1, 1)
+
+# number of sims per setting
+n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, rel))
+
+# make long data frame
+sim.out.long <- sim.out %>% 
+  pivot_longer(cols = starts_with("ghat") |
+                 starts_with("stde") |
+                 starts_with("bste"), 
+               names_to = "method.param",
+               values_to = "val") %>% 
+    mutate(method = factor(substr(method.param, 6, 7),
+                           levels = c("NI", "CI"),
+                           labels = c("Naive IPW",
+                                      "IPW CS")),
+           param = factor(substr(method.param, 9, 9)),
+           name = factor(substr(method.param, 1, 4)),
+           g.true = g[param],
+           rel.lab = factor(rel,
+                            labels = round(unique(rel), 2))) %>% 
+  dplyr::select(-method.param) %>% 
+  group_by(clust, n, B, rel, rel.lab, method, param, name) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_wider(names_from = name,
+              values_from = val,
+              id_cols = c(clust, n, B, rel, rel.lab, method,
+                          param, g.true, id)) %>% 
+  mutate(ci.lower = ghat - qnorm(0.975) * stde,
+         ci.upper = ghat + qnorm(0.975) * stde,
+         ci.cov = g.true >= ci.lower & g.true <= ci.upper,
+         bcci.lower = ghat - qnorm(0.975) * bste,
+         bcci.upper = ghat + qnorm(0.975) * bste,
+         bcci.cov = g.true >= bcci.lower & g.true <= bcci.upper)
+
+```
+
+The goal of this program is to evaluate the IPW CS estimator with a nonlinear PS model and under multiplicative measurement error.
+
+## Setup
+
+Consider the following setup:
+
+* continuous confounder $L \sim N(0, 0.13)$,
+* bivariate continuous exposure $\pmb{A} = (A_1, A_2)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_2\left(\begin{bmatrix} L^2 \\ -L^2 \end{bmatrix}, \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix}\right)$. 
+* mismeasured exposure $\pmb{A^*} = (A_1^*, A_2^*)^T$ having multiplicative structure $A_i^* = \epsilon_iA_i$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2) \sim N_2\left(\begin{bmatrix} 1 \\ 1 \end{bmatrix}, \begin{bmatrix} \sigma_e^2 & 0 \\ 0 & \sigma_e^2 \end{bmatrix}\right)$
+* normal outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) = \widetilde\gamma_0 + \widetilde\gamma_1 A_1 + \widetilde\gamma_2 A_2 + \widetilde\gamma_3 L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3)^T = (0, 1, 1, 1)^T$.
+
+This data generating process leads to the marginal structural model
+$\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2$, where $\pmb{\gamma} = (\gamma_0, \gamma_1, \gamma_2)^T = (0, 1, 1)^T$.
+
+The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in the marginal structural model.
+
+The exposure reliability $rel  = \textrm{Var}(A_i) / \textrm{Var}(A_i^*)$ is varied within $[0.5, 1]$, for $i\in\{1,2\}$. Given $rel$, $\sigma^2_e$ is computed as $\textrm{Var}(A_i)*(rel^{-1} - 1) / (\textrm{Var}(A_i) + \textrm{E}(A_i)^2)$.
+
+For these simulations, the measurement error is naively assumed to be additive, with covariance estimated using (for $k=10$)
+
+$$\widehat{\pmb{\Sigma}}_e = \frac{\sum_{i=1}^{5} \sum_{j=1}^{k} (\pmb{A}^*_{ij} - \pmb{A}^*_{i.})^{T}(\pmb{A}^*_{ij} - \pmb{A}^*_{i.})}{\sum_{i=1}^{5}(k - 1)}.$$
+
+## Methods
+
+In these simulations, we compare two methods:
+
+1) Naive IPW
+2) CS IPW
+
+The naive method treats $A^*$ as $A$, assuming there is no measurement error. The CS method uses the Monte-Carlo corrected score versions of the estimating functions.
+
+## Results
+
+We first check for simulations with errors.
+
+```{r message = F}
+
+# summarize proportion of missing data by setting
+sim.out.long %>% 
+  group_by(method, n, B, rel) %>% 
+  summarise(prop.error = mean(is.na(ghat))) %>% 
+  filter(prop.error > 0)
+
+```
+
+```{r}
+
+# extract simulation parameters
+n <- unique(sim.out$n)
+B <- unique(sim.out$B)
+rel <- unique(sim.out$rel)
+
+# make labels for plots
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+B.labs <- paste0("B = ", B)
+names(B.labs) <- B
+
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
+names(param.labs) <- 1:4
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
+
+```
+
+```{r}
+
+# create plots
+make.plot <- function(title = F, param. = 2, y.lim = Inf) {
+  
+  # Calculate the counts of truncated values
+  truncated_data <- sim.out.long %>%
+    filter(param == param.) %>%
+    group_by(rel.lab, n, method) %>%
+    summarize(
+      above = sum(ghat - g.true > y.lim),
+      below = sum(ghat - g.true < -y.lim)
+    ) %>%
+    ungroup()
+  
+  # Merge the truncated counts with the original data
+  sim.out.long.with.labels <- sim.out.long %>%
+    filter(param == param.) %>%
+    left_join(truncated_data, by = c("rel.lab", "n", "method")) %>%
+    mutate(
+      above.lab = ifelse(above == 0, "", as.character(above)),
+      below.lab = ifelse(below == 0, "", as.character(below)))
+
+  # Create the plot
+  plot <- sim.out.long.with.labels %>%
+    filter(abs(ghat - g.true) < y.lim) %>% 
+    ggplot(aes(x = rel.lab)) +
+    geom_boxplot(
+      aes(y = ghat, group = as.factor(rel)),
+      width = 0.7, outlier.size = 0.5) +
+    geom_hline(
+      aes(yintercept = g.true),
+      linetype = "dashed", color = "orange") +
+    geom_text(
+      aes(y = g.true + y.lim + .3, label = above.lab),
+      size = 3,
+      color = "red"
+    ) +
+    geom_text(
+      aes(y = g.true - y.lim - .3, label = below.lab),
+      size = 3,
+      hjust = 0.5,
+      color = "red"
+    ) +
+    facet_grid(n ~ method,
+               labeller = labeller(n = n.labs)) +
+    labs(
+      y = "Parameter Estimate",
+      x = "Exposure Reliability",
+      fill = "Method",
+      color = "Method"
+    ) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  
+  if (title) {
+    plot <- plot +
+      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+              subtitle = paste0(n.rep, " simulations per setting"))
+
+  }
+  return(plot)
+}
+
+```
+
+```{r}
+
+# create plots
+make.plot.2 <- function(title = F, param. = 2) {
+  
+  plot <- sim.out.long %>% 
+    filter(param == param.) %>% 
+    pivot_longer(cols = ends_with(".cov"), 
+                 names_to = "ci.type",
+                 values_to = "ci.cov") %>% 
+    mutate(ci.type = ifelse(ci.type == "bcci.cov",
+                            "Bias-Corrected",
+                            "Uncorrected")) %>% 
+    group_by(rel, n, method, ci.type) %>% 
+    summarise(cov = mean(ci.cov, na.rm = T)) %>% 
+    ggplot(aes(x = rel,
+               linetype = ci.type,
+               y = cov)) +
+    geom_line() +
+    geom_hline(yintercept = 0.95,
+               linetype = "dashed",
+               color = "orange") +
+    facet_grid(n ~ method,
+               scales = "free", 
+               labeller = labeller(n = n.labs)) +
+    labs(y = "Coverage Probability",
+         x = "Exposure Reliability",
+         linetype = "CI Type") +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  
+  if (title) {
+    plot <- plot +
+      ggtitle(paste0("Empirical Coverage Probabilities of 95% Confidence Intervals"),
+              subtitle = paste0(n.rep, " simulations per setting"))
+
+  }
+  return(plot)
+}
+
+```
+
+### Plots of Simulation Results
+
+Below are boxplots of the empirical distributions of estimators for $\gamma_1$, and plots of coverage probabilities of confidence intervals.
+
+```{r message = F}
+
+make.plot(param. = 1, y.lim = Inf)
+make.plot(param. = 2, y.lim = 1.5)
+make.plot(param. = 3, y.lim = 1.5)
+
+```
+
+```{r message = F}
+
+make.plot.2(param. = 1)
+make.plot.2(param. = 2)
+make.plot.2(param. = 3)
+
+```
+
+```{r warning = F, message = F, eval = T}
+
+make.plot(param. = 2, y.lim = 1.5)
+
+# save plot
+setwd(dirname(getwd()))
+ggsave("sim_figures/sim8_ipw_multiplicative_1.png",
+       width = 7,
+       height = 4,
+       dpi = 300)
+
+```
+
+```{r warning = F, message = F, eval = T}
+
+make.plot.2(param. = 2)
+
+# save plot
+setwd(dirname(getwd()))
+ggsave("sim_figures/sim8_ipw_multiplicative_2.png",
+       width = 7,
+       height = 4,
+       dpi = 300)
+
+```
+

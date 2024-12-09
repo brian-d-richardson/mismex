@@ -35,7 +35,7 @@ sim.out.list <- lapply(
 sim.out <- bind_rows(sim.out.list)
 
 # true MSM parameters
-g <- c(2, 1.5, -1.5)
+g <- c(0, 1, 1)
 
 # number of sims per setting
 n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare))
@@ -79,13 +79,13 @@ The goal of this program is to evaluate the Monte Carlo corrected score inverse 
 
 Consider the following setup:
 
-* continuous confounder $L \sim N(0, 0.36)$,
-* bivariate continuous exposure $\pmb{A} = (A_1, A_2)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_3\left(\begin{bmatrix} L^2 \\ -L^2 \end{bmatrix}, \begin{bmatrix} 0.25 & 0 \\ 0 & 0.25 \end{bmatrix}\right)$. 
-* mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, $\pmb{\Sigma}_e = \begin{bmatrix} 0.09 & 0 \\ 0 & 0.09 \end{bmatrix}$.
-* normal outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) = \widetilde\gamma_0 + \widetilde\gamma_1 A_1 + \widetilde\gamma_2 A_2 + \widetilde\gamma_3 L + \widetilde\gamma_4A_1L + \widetilde\gamma_5 A_2L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3, \widetilde\gamma_4, \widetilde\gamma_5)^T = (2, 1.5, -1.5, -2, 1, 1)^T$.
+* continuous confounder $L \sim N(0, 0.13)$,
+* bivariate continuous exposure $\pmb{A} = (A_1, A_2)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_2\left(\begin{bmatrix} L^2 \\ -L^2 \end{bmatrix}, \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix}\right)$. 
+* mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, $\pmb{\Sigma}_e = \begin{bmatrix} 0.2 & 0 \\ 0 & 0.2 \end{bmatrix}$.
+* normal outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) = \widetilde\gamma_0 + \widetilde\gamma_1 A_1 + \widetilde\gamma_2 A_2 + \widetilde\gamma_3 L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3)^T = (0, 1, 1, 1)^T$.
 
 This data generating process leads to the marginal structural model
-$\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2 + \gamma_3 a_3$, where $\pmb{\gamma} = (\gamma_0, \gamma_1, \gamma_2, \gamma_3)^T = (2, 1.5, -1.5,)^T$.
+$\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2$, where $\pmb{\gamma} = (\gamma_0, \gamma_1, \gamma_2)^T = (0, 1, 1)^T$.
 
 The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in the marginal structural model.
 
@@ -217,13 +217,11 @@ Below is a table of the empirical bias, empirical standard error, mean estimated
 ```{r}
 
 tbl <- sim.out.long %>% 
-  filter(n %in% c(800, 8000)) %>% 
   mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
   group_by(n, method, Param) %>% 
   summarise(bias = 100 * mean(ghat - g.true),
             emp.se = 100 * sd(ghat),
             est.se = 100 * mean(stde),
-            est.se2 = 100 * sqrt(exp(mean(log(stde^2)))),
             ci.cov = 100 * mean(ci.cov),
             bcest.se = 100 * mean(bste),
             bcci.cov = 100 * mean(bcci.cov))
@@ -253,72 +251,4 @@ print(kbl)
   
 ```
 
-### Investigate std errors
-
-```{r}
-
-sim.out.long %>% 
-  filter(n %in% c(800, 8000)) %>% 
-  group_by(n, method, param) %>% 
-  summarise(emp.se = sd(ghat)) %>% 
-  inner_join(sim.out.long,
-             by = c("n", "method", "param")) %>% 
-  ggplot(
-  aes(x = method,
-      y = stde,
-      fill = method,
-      color = method)) +
-  geom_boxplot(alpha = 0.5, outlier.size = 0.5) +
-  geom_point(aes(y = emp.se),
-             shape = 2, stroke = 1) +
-  stat_summary(fun = mean,
-               geom = "point",
-               shape = 8,
-               size = 2,
-               orientation = "x",
-               show.legend = F) +
-  facet_grid(n ~ param,
-             scales = "free",
-             labeller = labeller(n = n.labs,
-                                 param = param.labs)) +
-  labs(y = "Estimated Std Error",
-       fill = "Method",
-       color = "Method") +
-  theme_bw() +
-  theme(axis.title.x = element_blank(),
-        axis.ticks.x = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = "bottom") +
-  scale_fill_manual(values = pal_light) +
-  scale_color_manual(values = pal_dark) +
-  scale_y_continuous(trans = "log10")
-  
-
-```
-
-
-```{r fig.height = 20, width = 2}
-
-# plot confidence intervals
-sim.out.long %>% 
-  filter(method == "Oracle IPW",
-         param == 1,
-         n == 8000) %>% 
-  arrange(by = ghat) %>% 
-  ungroup() %>% 
-  mutate(rn = row_number()) %>% 
-  ggplot(aes(y = rn,
-             x = ghat,
-             xmin = ci.lower,
-             xmax = ci.upper,
-             color = ci.cov)) +
-  geom_pointrange(size = 0.01, linewidth = 1) +
-  geom_point(size = 2, color = "black") +
-  geom_vline(aes(xintercept = g.true),
-             color = "black",
-             linetype = "dashed") +
-  labs(y = "",
-       x = "Mean (95% CI)")
-
-```
 

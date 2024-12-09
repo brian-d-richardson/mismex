@@ -70,7 +70,8 @@ fit.dr <- function(data, args, a,
   }
 
   # fit weighted outcome model
-  root <- fit.ipw(data = data, args = args, start = start, return.var = F,
+  root <- fit.ipw(data = data, args = args, start = start,
+                  return.var = F, return.bcvar = F,
                   coef.a.l = coef.a.l, var.a.l = var.a.l)$est
   outcome.params <- head(root, len.est)
 
@@ -99,19 +100,29 @@ fit.dr <- function(data, args, a,
   ghat <- c(root, EYa)
 
   # sandwich variance estimates including PS model if requested
-  evar <- as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
-                               len.est + len.a + len.ps + len.A))
+  evar <- as.data.frame(matrix(NA, length(ghat), length(ghat)))
   if (return.var) {
     evar <- tryCatch(
       expr = get.sand.est(
         ghat = ghat,
         n = n,
         get.psi = function(x) {
-          ght <- head(x, len.est + len.A*(1+len.ps))
-          ght.out <- head(x, len.est)
-          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
-                             ncol = len.ps, byrow = F)
-          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])
+          ght <- head(x, -len.a)                                  # IPW params
+          ght.out <- head(x, len.est)                             # Y|A,L coefs
+          coef.a.l <- matrix(                                     # A|L coefs
+            x[len.est + 1:(len.A*len.ps)],
+            ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])   # Var(A|L)
+          mean.a <- x[len.est + (len.A*len.ps) + len.A + 1:len.A] # E(A)
+          if (len.A == 1) {
+            cov.a <- x[len.est + (len.A*len.ps) + 2*len.A + 1]
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-                    # Cov(A)
+              x[len.est + (len.A*len.ps) + 2*len.A +
+                  1:(len.A * (len.A + 1) / 2)]
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
           EYa <- tail(x, len.a)
           cbind(
             # weighted outcome model
@@ -122,6 +133,11 @@ fit.dr <- function(data, args, a,
             get.psi.ps(
               data = data, ps.formula = ps.formula,
               coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            # PS numerator
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a = mean.a,
               return.sums = F),
             # E{Y(a)}
             vapply(X = 1:len.a,
@@ -150,19 +166,29 @@ fit.dr <- function(data, args, a,
   colnames(evar) <- names(ghat)
 
   # bias-corrected variance if requested
-  bc.evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
-                                 len.est + len.a + len.ps + len.A))
+  bc.evar = as.data.frame(matrix(NA, length(ghat), length(ghat)))
   if (return.bcvar) {
     bc.evar <- tryCatch(
       expr = get.sand.est.bc(
         ghat = ghat,
         n = n,
         get.psi = function(x) {
-          ght <- head(x, len.est + len.A*(1+len.ps))
-          ght.out <- head(x, len.est)
-          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
-                             ncol = len.ps, byrow = F)
-          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])
+          ght <- head(x, -len.a)                                  # IPW params
+          ght.out <- head(x, len.est)                             # Y|A,L coefs
+          coef.a.l <- matrix(                                     # A|L coefs
+            x[len.est + 1:(len.A*len.ps)],
+            ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])   # Var(A|L)
+          mean.a <- x[len.est + (len.A*len.ps) + len.A + 1:len.A] # E(A)
+          if (len.A == 1) {
+            cov.a <- x[len.est + (len.A*len.ps) + 2*len.A + 1]
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-                    # Cov(A)
+              x[len.est + (len.A*len.ps) + 2*len.A +
+                  1:(len.A * (len.A + 1) / 2)]
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
           EYa <- tail(x, len.a)
           cbind(
             # weighted outcome model
@@ -173,6 +199,11 @@ fit.dr <- function(data, args, a,
             get.psi.ps(
               data = data, ps.formula = ps.formula,
               coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            # PS numerator
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a = mean.a,
               return.sums = F),
             # E{Y(a)}
             vapply(X = 1:len.a,
@@ -268,7 +299,8 @@ fit.dr.mccs <- function(data, args, a,
   }
 
   # fit weighted outcome model
-  root <- fit.ipw.mccs(data = data, args = args, start = start, return.var = F,
+  root <- fit.ipw.mccs(data = data, args = args, start = start,
+                       return.var = F, return.bcvar = F,
                        cov.e = cov.e, B = B, mc.seed = mc.seed,
                        mean.a = mean.a, cov.a = cov.a,
                        coef.a.l = coef.a.l, var.a.l = var.a.l)$est
@@ -308,19 +340,31 @@ fit.dr.mccs <- function(data, args, a,
     cov.e = cov.e, B = B, mc.seed = mc.seed)
 
   # sandwich variance estimates including PS model if requested
-  evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
-                              len.est + len.a + len.ps + len.A))
+  evar = as.data.frame(matrix(NA, length(ghat), length(ghat)))
   if (return.var) {
     evar <- tryCatch(
       expr = get.sand.est(
         ghat = ghat,
         n = n,
         get.psi = function(x) {
-          ght <- head(x, len.est + len.A*(1+len.ps))
-          ght.out <- head(x, len.est)
-          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
-                             ncol = len.ps, byrow = F)
-          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A]) + d.cov.e
+          ght <- head(x, -len.a)                                  # IPW params
+          ght.out <- head(x, len.est)                             # Y|A,L coefs
+          coef.a.l <- matrix(                                     # A|L coefs
+            x[len.est + 1:(len.A*len.ps)],
+            ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])   # Var(A|L)
+          + d.cov.e
+          mean.a <- x[len.est + (len.A*len.ps) + len.A + 1:len.A] # E(A)
+          if (len.A == 1) {
+            cov.a <- x[len.est + (len.A*len.ps) + 2*len.A + 1]
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-                  # Cov(A)
+              x[len.est + (len.A*len.ps) + 2*len.A +
+                  1:(len.A * (len.A + 1) / 2)]
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
+          cov.a <- cov.a + cov.e
           EYa <- tail(x, len.a)
           cbind(
             # weighted outcome model
@@ -329,6 +373,11 @@ fit.dr.mccs <- function(data, args, a,
             get.psi.ps(
               data = data, ps.formula = ps.formula,
               coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            # PS numerator
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a = mean.a,
               return.sums = F),
             # E{Y(a)}
             vapply(X = 1:len.a,
@@ -357,19 +406,31 @@ fit.dr.mccs <- function(data, args, a,
   colnames(evar) <- names(ghat)
 
   # bias-corrected variance if requested
-  bc.evar = as.data.frame(matrix(NA, len.est + len.a + len.ps + len.A,
-                                 len.est + len.a + len.ps + len.A))
+  bc.evar = as.data.frame(matrix(NA, length(ghat), length(ghat)))
   if (return.bcvar) {
     bc.evar <- tryCatch(
       expr = get.sand.est.bc(
         ghat = ghat,
         n = n,
         get.psi = function(x) {
-          ght <- head(x, len.est + len.A*(1+len.ps))
-          ght.out <- head(x, len.est)
-          coef.a.l <- matrix(x[len.est + 1:(len.A*len.ps)],
-                             ncol = len.ps, byrow = F)
-          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A]) + d.cov.e
+          ght <- head(x, -len.a)                                  # IPW params
+          ght.out <- head(x, len.est)                             # Y|A,L coefs
+          coef.a.l <- matrix(                                     # A|L coefs
+            x[len.est + 1:(len.A*len.ps)],
+            ncol = len.ps, byrow = F)
+          var.a.l <- exp(x[len.est + (len.A*len.ps) + 1:len.A])   # Var(A|L)
+          + d.cov.e
+          mean.a <- x[len.est + (len.A*len.ps) + len.A + 1:len.A] # E(A)
+          if (len.A == 1) {
+            cov.a <- x[len.est + (len.A*len.ps) + 2*len.A + 1]
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-                  # Cov(A)
+              x[len.est + (len.A*len.ps) + 2*len.A +
+                  1:(len.A * (len.A + 1) / 2)]
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
+          cov.a <- cov.a + cov.e
           EYa <- tail(x, len.a)
           cbind(
             # weighted outcome model
@@ -378,6 +439,11 @@ fit.dr.mccs <- function(data, args, a,
             get.psi.ps(
               data = data, ps.formula = ps.formula,
               coef.a.l = coef.a.l, var.a.l = var.a.l,
+              return.sums = F),
+            # PS numerator
+            get.psi.ps.num(
+              data = data,
+              cov.a = cov.a, mean.a = mean.a,
               return.sums = F),
             # E{Y(a)}
             vapply(X = 1:len.a,

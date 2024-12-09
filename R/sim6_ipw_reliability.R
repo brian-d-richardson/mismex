@@ -27,13 +27,12 @@ sim6.ipw.reliability <- function(
 
   # define parameters -------------------------------------------------------
 
-  gg <- c(2, 1.5, -1.5, -2, 1, 1)                # Y|A,L parameters
-  glm.formula <- "~A1*L + A2*L"                  # Y|A,L model formula
+  gg <- c(0, 1, 1, 1)                       # Y|A,L parameters
   ipw.formula <- "~A1 + A2"                      # MSM formula
-  ps.formula <- "~L+ I(L^2)"                     # PS model formula
+  ps.formula <- "~L + I(L^2)"                    # PS model formula
   inv.link <- inv.ident;                         # MSM link function
   d.inv.link <- d.inv.ident;                     # MSM derivative of link
-  vare <- (rel^(-1) - 1) * 0.284
+  vare <- (rel^(-1) - 1) * 1.0336
   cov.e <- diag(c(vare, vare))                   # measurement error variance
   mc.seed <- 123                                 # MCCS seed value
   coef.a.l <- matrix(                            # coefs in A|L model
@@ -41,7 +40,7 @@ sim6.ipw.reliability <- function(
              0, 0,
              1, -1),
     nrow = 3, byrow = T)
-  var.a.l <- c(0.25, 0.25)                       # variance of A|L
+  var.a.l <- c(1, 1)                       # variance of A|L
 
   # simulate data -----------------------------------------------------------
 
@@ -55,8 +54,8 @@ sim6.ipw.reliability <- function(
   Astar <- A + mvrnorm(n = n,                    # mismeasured exposure
                        m = c(0, 0),
                        Sigma = cov.e)
-  Y_mean <- cbind(1, A, L, A*L) %*% gg           # mean of outcome Y
-  Y <- rnorm(n, 0, 1) + Y_mean                  # outcome Y
+  Y_mean <- cbind(1, A, L) %*% gg                # mean of outcome Y
+  Y <- rnorm(n, 0, 1) + Y_mean                   # outcome Y
   colnames(A) <- colnames(Astar) <- c("A1", "A2")
   dat0 <- data.frame(Y, A, L)                    # oracle data
   datstar <- data.frame(Y, Astar, L)             # mismeasured data
@@ -65,10 +64,7 @@ sim6.ipw.reliability <- function(
 
   len.A <- ncol(A)                               # dimension of A
   mean.a <- colMeans(A)                          # marginal mean of A
-  cov.a <- cov(A)                                # marginal covariance of A
-  args.glm <- list(formula = glm.formula,        # arguments for fitting GLM
-                   inv.link = inv.link,
-                   d.inv.link = d.inv.link)
+  cov.a <- cov(A)*(n-1)/n                        # marginal covariance of A
   args.ipw <- list(formula = ipw.formula,        # arguments for fitting IPW
                    ps.formula = ps.formula,
                    inv.link = inv.link,

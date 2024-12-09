@@ -1,0 +1,250 @@
+---
+title: "Simulation 4: DR with model misspecification"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(kableExtra)
+library(devtools)
+load_all()
+
+```
+
+```{r warning = F}
+
+# load simulation results from each of 10 clusters
+setwd(dirname(getwd()))
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/sim4_dr_misspec/sd",
+                          clust, ".csv")))
+  })
+
+# true estimand
+g <- 0.175
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list) %>% 
+  mutate(g.true = g,
+         ci.lower = est - qnorm(0.975) * se,
+         ci.upper = est + qnorm(0.975) * se,
+         ci.cov = g.true >= ci.lower & g.true <= ci.upper,
+         bcci.lower = est - qnorm(0.975) * bse,
+         bcci.upper = est + qnorm(0.975) * bse,
+         bcci.cov = g.true >= bcci.lower & g.true <= bcci.upper,
+         method = factor(method,
+                         levels = c("gfmla", "ipw", "dr"),
+                         labels = c("G-Formula", "IPW", "DR")),
+         type = factor(type,
+                       levels = c("oracle", "naive", "rc", "mccs"),
+                       labels = c("Oracle", "Naive", "Reg. Cal.", "MCCS")),
+         spec = factor(ifelse(ps == 0 & out == 0, "PS and OR",
+                       ifelse(ps == 0 & out == 1, "PS",
+                       ifelse(ps == 1 & out == 0, "OR", "Neither"))),
+                       levels = c("PS and OR", "PS", "OR", "Neither")),
+         ps = factor(ps,
+                     levels = c(0, 1),
+                     labels = c("PS Correct", "PS Incorrect")),
+         out = factor(out,
+                      levels = c(0, 1),
+                      labels = c("Outcome Correct", "Outcome Incorrect")))
+
+# number of sims per setting
+n.rep <- nrow(sim.out) /
+  n_distinct(dplyr::select(sim.out, n, method, type, ps, out))
+
+```
+
+The goal of this program is to evaluate the Monte Carlo corrected score double robust (MCCS DR) estimator in the presence of confounding, measurement error, and possible model misspecification.
+
+## Setup
+
+Consider the following setup:
+
+* sample size $n\in\{400,2000\}$,
+* two independent confounders $L_1 \sim \textrm{Bernoulli}(0.5), L_2 \sim N(0, 0.16)$
+* univariate exposure $A$, where $A|L \sim N(0.1 - 0.1L_1 + 0.3L_2, 0.04)$
+* binary outcome $Y$, with $Y|A,L \sim \textrm{Bernoulli}(0.35 + 0.15A + 0.25L_1 + 0.2L_2 + 0.05AL_1 + 0.1AL_2)$
+* resulting MSM $\eta(a) = \textrm{E}\{Y(a)\} = \gamma_0 + \gamma_1a$, where $\pmb{\gamma} = (\gamma_0, \gamma_1)^T = (0.475, 0.175)^T$
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.01)$
+
+The estimand of interest in these simulations is $\gamma_1$.
+
+## Methods
+
+In these simulations, we consider four scenarios defined by whether the propensity score and outcome models are correctly specified. To misspecify the propensity model, we omit the confounder $L_1$, and to misspecify the outcome model, we omit $L_1$ and its interaction with $A$.
+
+For each scenario, we compare 15 methods based on three estimators:
+
+1) G-Formula
+2) IPW
+3) DR
+
+and 5 ways to handle measurement error:
+
+1) Oracle
+2) Naive
+3) Regression Calibration
+4) SIMEX
+5) MCCS
+
+The oracle method uses the true exposure values $A$, which are not observed in practice. The naive method treats $A^*$ as $A$, assuming there is no measurement error. Regression calibration replaces $A^*$ with an approximation of $\textrm{E}(A|A^*,\pmb{L})$. SIMEX uses simulated data with a sequence of additional measurement error to extrapolate backwards to estimate the dose response curve with no measurement error. The CS method uses the Monte-Carlo corrected score versions of the estimating functions.
+
+
+## Results
+
+We first check for simulations with errors.
+
+```{r message = F}
+
+# summarize proportion of missing data by setting
+sim.out %>% 
+  group_by(n, method, type, ps, out) %>% 
+  summarise(prop.error = mean(is.na(est))) %>% 
+  filter(prop.error > 0) %>% 
+  ungroup()
+
+```
+
+```{r}
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
+
+```
+
+```{r}
+
+# plot all estimators across 4 modeling scenarios
+make.plot <- function(n. = 2000, vare. = 0.01) {
+  
+  sim.out %>% 
+    filter(n == n.,
+           vare == vare.) %>% 
+    ggplot(aes(x = type,
+               y = est,
+               fill = type,
+               color = type)) +
+    geom_boxplot() +
+    geom_hline(yintercept = g,
+               linetype = "dashed",
+               color = "orange") +
+    facet_nested(method ~ ps + out, scales = "free") +
+    labs(y = "Parameter Estimate",
+         fill = "Type",
+         color = "Type") +
+    ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+            subtitle = paste0("n = ", n., "; ",
+                              n.rep, " simulations per setting")) +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank()) +
+    scale_fill_manual(values = pal_light) +
+    scale_color_manual(values = pal_dark)
+}
+
+```
+
+### Plot of Simulation Results
+
+Below is a plot of the empirical distributions of the nine estimators under the four model specification scenarios.
+
+```{r message = F}
+
+make.plot(n. = 2000)
+#make.plot(n. = 400)
+
+```
+
+### Table of Simulation Results
+
+The following table shows the empirical bias, empirical standard error (ESE), average estimated standard error (ASE), and empirical coverage probability of the UC and BC 95% CIs for the corrected estimators under the four model specification scenarios and a sample size $n=400$
+
+```{r}
+
+tbl <- sim.out %>% 
+  filter(type == "MCCS",
+         n == 2000) %>% 
+  group_by(spec, method, type) %>% 
+  mutate(method = paste0(method, " CS")) %>% 
+  summarise(bias = 100 * mean(est - g.true, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(se),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bse, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
+
+kbl <- tbl %>% 
+  kable(format = "latex",
+        align = c(rep("c", 2),
+                  rep("r", 6)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace"),
+        escape = FALSE,
+        digits = c(0, 0,
+                   1, 1, 1, 1, 1, 1),
+        col.names = c("Correct Specifications", "Method", "Type",
+                      "Bias", "ESE", "ASE", "Cov", "ASE", "Cov"),
+        caption = "Estimated MSM Slope") %>%
+  add_header_above(c(" " = 4,
+                     "UC" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+print(kbl)
+
+```
+
+Below is the same table with $n=400$.
+
+```{r}
+
+tbl2 <- sim.out %>% 
+  filter(type == "MCCS",
+         n == 400) %>% 
+  group_by(spec, method, type) %>% 
+  mutate(method = paste0(method, " CS")) %>% 
+  summarise(bias = 100 * mean(est - g.true, na.rm = T),
+            emp.se = 100 * sd(est, na.rm = T),
+            est.se = 100 * mean(se),
+            ci.cov = 100 * mean(ci.cov, na.rm = T),
+            bcest.se = 100 * mean(bse, na.rm = T),
+            bcci.cov = 100 * mean(bcci.cov, na.rm = T))
+
+kbl2 <- tbl2 %>% 
+  kable(format = "latex",
+        align = c(rep("c", 2),
+                  rep("r", 6)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace"),
+        escape = FALSE,
+        digits = c(0, 0,
+                   1, 1, 1, 1, 1, 1),
+        col.names = c("Correct Specifications", "Method", "Type",
+                      "Bias", "ESE", "ASE", "Cov", "ASE", "Cov"),
+        caption = "Estimated MSM Slope") %>%
+  add_header_above(c(" " = 4,
+                     "UC" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+print(kbl2)
+
+```
+

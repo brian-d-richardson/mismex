@@ -23,13 +23,13 @@ sim3.ipw.nonlinearps <- function(
   # for troubleshooting -----------------------------------------------------
 
   #library(MASS); library(devtools); load_all()
-  #n = 800; vare = 0.05; B = 80; seed = 1;
+  #n = 800; vare = 0.2; B = 80; seed = 1;
 
   # define parameters -------------------------------------------------------
 
-  gg <- c(2, 1.5, -1.5, -2, 1, 1)                # Y|A,L parameters
+  gg <- c(0, 1, 1, 1)                       # Y|A,L parameters
   ipw.formula <- "~A1 + A2"                      # MSM formula
-  ps.formula <- "~L+ I(L^2)"                     # PS model formula
+  ps.formula <- "~L + I(L^2)"                    # PS model formula
   inv.link <- inv.ident;                         # MSM link function
   d.inv.link <- d.inv.ident;                     # MSM derivative of link
   cov.e <- diag(c(vare, vare))                   # measurement error variance
@@ -39,7 +39,7 @@ sim3.ipw.nonlinearps <- function(
              0, 0,
              1, -1),
     nrow = 3, byrow = T)
-  var.a.l <- c(0.09, 0.09)                       # variance of A|L
+  var.a.l <- c(1, 1)                       # variance of A|L
 
   # simulate data -----------------------------------------------------------
 
@@ -53,13 +53,11 @@ sim3.ipw.nonlinearps <- function(
   Astar <- A + mvrnorm(n = n,                    # mismeasured exposure
                        m = c(0, 0),
                        Sigma = cov.e)
-  Y_mean <- cbind(1, A, L, A*L) %*% gg           # mean of outcome Y
-  Y <- rnorm(n, 0, 1) + Y_mean                  # outcome Y
+  Y_mean <- cbind(1, A, L) %*% gg                # mean of outcome Y
+  Y <- rnorm(n, 0, 1) + Y_mean                   # outcome Y
   colnames(A) <- colnames(Astar) <- c("A1", "A2")
   dat0 <- data.frame(Y, A, L)                    # oracle data
   datstar <- data.frame(Y, Astar, L)             # mismeasured data
-
-  #plot(L, A[,1]); plot(L, A[,2]); apply(A, 2, var) / apply(Astar, 2, var)
 
   # store values for estimation ---------------------------------------------
 
@@ -70,7 +68,6 @@ sim3.ipw.nonlinearps <- function(
                    ps.formula = ps.formula,
                    inv.link = inv.link,
                    d.inv.link = d.inv.link)
-
 
   # estimate E(A | Astar) for regression calibration ------------------------
 

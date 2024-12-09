@@ -55,6 +55,7 @@ fit.ipw <- function(data, args,
   # marginal mean and covariance of A
   mean.a <- colMeans(as.matrix(A))
   if (is.vector(A)) { cov.a <- var(A) } else { cov.a <- cov(A) }
+  cov.a <- cov.a * (n-1)/n
 
   # set starting value if not supplied
   if (is.null(start)) { start <- rep(0, len.msm) }
@@ -65,7 +66,7 @@ fit.ipw <- function(data, args,
                     data = data, weights = cc.wts)
     coef.a.l <- t(coef(model.a.l))
     var.a.l <- apply(as.matrix(model.a.l$residuals, ncol = len.a), 2, var) *
-      (n-1) / n
+      (n-1)/n
   }
 
   # solve IPW equation
@@ -103,9 +104,14 @@ fit.ipw <- function(data, args,
                              ncol = len.ps, byrow = F)
           var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
           mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
-          cov.a <- matrix(0, len.A, len.A)
-          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
-          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          if (len.A == 1) {                                      # Cov(A)
+            cov.a <- tail(x, 1)
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-
+              tail(x, len.A * (len.A + 1) / 2)
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
           cbind(
             get.psi.ipw(
               data = data, g = x, args = args,
@@ -124,6 +130,21 @@ fit.ipw <- function(data, args,
       error = function(e) {message(e); evar})
   }
 
+  #Psi <- get.psi(x = est)
+
+  #round(colSums(Psi), 6)
+
+  #PPsi <- Psi %>%
+  #  as.data.frame() %>%
+  #  `colnames<-`(paste0("v", 1:14)) %>%
+  #  pivot_longer(cols = everything())
+
+  #PPsi %>%
+  #  filter(name %in% paste0("v", c(10, 11, 14, 15, 16))) %>%
+  #  ggplot(aes(y = value)) +
+  #  geom_boxplot() +
+  #  facet_wrap(~name, scales = "free")
+
   # bias corrected variance estimator
   bc.evar = matrix(NA, length(est), length(est))
   if (return.bcvar) {
@@ -136,9 +157,14 @@ fit.ipw <- function(data, args,
                              ncol = len.ps, byrow = F)
           var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
           mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
-          cov.a <- matrix(0, len.A, len.A)
-          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
-          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          if (len.A == 1) {                                      # Cov(A)
+            cov.a <- tail(x, 1)
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-
+              tail(x, len.A * (len.A + 1) / 2)
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
           cbind(
             get.psi.ipw(
               data = data, g = x, args = args,
@@ -285,9 +311,14 @@ fit.ipw.mccs <- function(data, args,
                              ncol = len.ps, byrow = F)
           var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
           mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
-          cov.a <- matrix(0, len.A, len.A)
-          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
-          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          if (len.A == 1) {                                      # Cov(A)
+            cov.a <- tail(x, 1)
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-
+              tail(x, len.A * (len.A + 1) / 2)
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
           cbind(
             get.psi.ipw.mccs(x = x, return.sums = F),
             get.psi.ps(
@@ -296,8 +327,8 @@ fit.ipw.mccs <- function(data, args,
               return.sums = F),
             get.psi.ps.num(
               data = data,
-              cov.a = cov.a, mean.a =
-                mean.a,return.sums = F
+              cov.a = cov.a, mean.a = mean.a,
+              return.sums = F
             )) }),
         warning = function(w) {message(w); evar},
         error = function(e) {message(e); evar})
@@ -315,9 +346,14 @@ fit.ipw.mccs <- function(data, args,
                              ncol = len.ps, byrow = F)
           var.a.l <- exp(x[len.msm + (len.A*len.ps) + 1:len.A])
           mean.a <- x[len.msm + (len.A*len.ps) + len.A + 1:len.A]
-          cov.a <- matrix(0, len.A, len.A)
-          cov.a[upper.tri(cov.a, diag = T)] <- tail(x, len.A * (len.A + 1) / 2)
-          cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          if (len.A == 1) {                                      # Cov(A)
+            cov.a <- tail(x, 1)
+          } else {
+            cov.a <- matrix(0, len.A, len.A)
+            cov.a[upper.tri(cov.a, diag = T)] <-
+              tail(x, len.A * (len.A + 1) / 2)
+            cov.a <- cov.a + t(cov.a) - diag(diag(cov.a))
+          }
           cbind(
             get.psi.ipw.mccs(x = x, return.sums = F),
             get.psi.ps(

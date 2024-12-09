@@ -35,7 +35,7 @@ fit.gfmla <- function(data, args, a,
   n <- nrow(data)                               # sample size
   len.est <- ncol(model.matrix(                 # dimension of model parameters
     terms(as.formula(formula)), data = data))
-  len.a <- length(a)                            # number of exposure values
+  len.a <- ifelse(is.vector(a), length(a), nrow(a)) # number of exposures
   L <- data[, grepl("L", colnames(data))]       # covariates
 
   # fit outcome model
@@ -55,11 +55,13 @@ fit.gfmla <- function(data, args, a,
                  L))
            } else {
              aa <- a[ai,]
+             adata <- data.frame(
+               A = do.call("rbind", replicate(n, aa, simplify = F)),
+               L)
+             colnames(adata)[1:ncol(a)] <- c(paste0("A", 1:ncol(a)))
              a.mod.mat <- mod.mat(
                terms(as.formula(formula)),
-               data = data.frame(
-                 do.call("rbind", replicate(n, aa, simplify = F)),
-                 L))
+               data = adata)
            }
            mean(inv.link(a.mod.mat %*% root))
          })

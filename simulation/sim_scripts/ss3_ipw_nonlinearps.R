@@ -31,9 +31,9 @@ base.seed <- 10^6 * as.integer(args)
 n.sim <- 1
 
 # varied parameters
-n <- 800#c(400, 800, 8000)            # sample size
+n <- c(400, 800, 8000)            # sample size
 B <- 80                           # number of MC replicates
-vare <- 0.05                # number of replicate exposure measurements
+vare <- 0.2                # number of replicate exposure measurements
 
 # run simulations ---------------------------------------------------------
 

@@ -36,7 +36,7 @@ sim.out.list <- lapply(
 sim.out <- bind_rows(sim.out.list)
 
 # true MSM parameters
-g <- c(2, 1.5, -1.5)
+g <- c(0, 1, 1)
 
 # number of sims per setting
 n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, k))
@@ -77,13 +77,13 @@ The goal of this program is to evaluate the IPW CS estimator with a nonlinear PS
 
 Consider the following setup:
 
-* continuous confounder $L \sim U(0, 1)$,
-* trivariate continuous exposure $\pmb{A} = (A_1, A_2, A_3)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_3\left(\begin{bmatrix} 0.4L^2 \\ -0.4L^2 \\ 0.2 - 0.1L^2 \end{bmatrix}, \begin{bmatrix} 0.09 & 0 & 0 \\ 0 & 0.09 & 0 \\ 0 & 0 & 0.09 \end{bmatrix}\right)$. 
-* mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2,  A^*_3)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2, \epsilon_3)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, $\pmb{\Sigma}_e = \begin{bmatrix} \sigma_e^2 & 0 & 0 \\ 0 & \sigma_e^2 & 0 \\ 0 & 0 & 0\end{bmatrix}$.
-* binary outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) =  \widetilde\gamma_0 + \widetilde\gamma_1 a_1 + \widetilde\gamma_2 a_2 + \widetilde\gamma_3 a_3 + \widetilde\gamma_4L + \widetilde\gamma_5 a_1L + \widetilde\gamma_6 a_2L + \widetilde\gamma_7 a_3L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3, \widetilde\gamma_4, \widetilde\gamma_5, \widetilde\gamma_6, \widetilde\gamma_7)^T = (0.4, 0.15, 0.15, 0.2, 0.1, 0.1, 0, -0.1)^T$.
+* continuous confounder $L \sim N(0, 0.13)$,
+* bivariate continuous exposure $\pmb{A} = (A_1, A_2)^T$ with $\pmb{A}|L$ having multivariate normal distribution $N_2\left(\begin{bmatrix} L^2 \\ -L^2 \end{bmatrix}, \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix}\right)$. 
+* mismeasured exposure $\pmb{A}^* = (A^*_1, A^*_2)^T = \pmb{A} + \pmb{\epsilon}$, where $\pmb{\epsilon} = (\epsilon_1, \epsilon_2)^T \sim N(\pmb{0}, \pmb{\Sigma}_e)$, $\pmb{\Sigma}_e = \begin{bmatrix} 0.2 & 0 \\ 0 & 0.2 \end{bmatrix}$.
+* normal outcome $Y$ with $\textrm{E}(Y|\pmb{A},L) = \widetilde\gamma_0 + \widetilde\gamma_1 A_1 + \widetilde\gamma_2 A_2 + \widetilde\gamma_3 L$, where $\widetilde{\pmb{\gamma}} = (\widetilde\gamma_0, \widetilde\gamma_1, \widetilde\gamma_2, \widetilde\gamma_3)^T = (0, 1, 1, 1)^T$.
 
 This data generating process leads to the marginal structural model
-$\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2 + \gamma_3 a_3$, where $\pmb{\gamma} = (\gamma_0, \gamma_1, \gamma_2, \gamma_3)^T = (0.45, 0.2, 0.15, 0.15)^T$.
+$\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2$, where $\pmb{\gamma} = (\gamma_0, \gamma_1, \gamma_2)^T = (0, 1, 1)^T$.
 
 The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in the marginal structural model.
 
@@ -132,7 +132,6 @@ names(k.labs) <- k
 param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
 names(param.labs) <- 1:4
 
-
 # colorblind friendly pallette
 pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
 pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
@@ -153,11 +152,11 @@ make.plot <- function(title = F, param. = 2) {
     geom_hline(aes(yintercept = g.true),
                linetype = "dashed",
                color = "orange") +
-    facet_grid(n ~ method,
-               scales = "free", 
-               labeller = labeller(n = n.labs)) +
+    #facet_grid(n ~ method,
+    #           scales = "free", 
+    #           labeller = labeller(n = n.labs)) +
     labs(y = "Parameter Estimate",
-         x = "Exposure Reliability",
+         x = "Number of Exposure Replicates (k)",
          fill = "Method",
          color = "Method") +
     theme_bw() +
@@ -179,7 +178,7 @@ make.plot <- function(title = F, param. = 2) {
 ```{r}
 
 # create plots
-make.plot.2 <- function(title = F, param. = 1) {
+make.plot.2 <- function(title = F, param. = 2) {
   
   plot <- sim.out.long %>% 
     filter(param == param.,
@@ -199,11 +198,11 @@ make.plot.2 <- function(title = F, param. = 1) {
     geom_hline(yintercept = 0.95,
                linetype = "dashed",
                color = "orange") +
-    facet_grid(n ~ method,
-               scales = "free", 
-               labeller = labeller(n = n.labs)) +
+    #facet_grid(n ~ method,
+    #           scales = "free", 
+    #           labeller = labeller(n = n.labs)) +
     labs(y = "Coverage Probability",
-         x = "Exposure Reliability",
+         x = "Number of Exposure Replicates (k)",
          linetype = "CI Type") +
     theme_bw() +
     theme(legend.position = "bottom")

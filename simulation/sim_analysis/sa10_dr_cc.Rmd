@@ -1,0 +1,242 @@
+---
+title: "Simulation 10: DR with case cohort sampling"
+author: "Brian Richardson"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r message = F, warning = F}
+
+rm(list = ls())
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggh4x)
+library(kableExtra)
+
+```
+
+```{r warning = F}
+
+# load simulation results from each of 10 clusters
+setwd(dirname(getwd()))
+sim.out.list <- lapply(
+  X = 0:9,
+  FUN = function(clust) {
+    cbind(clust,
+          read.csv(paste0("sim_data/sim10_dr_cc/sd",
+                          clust, ".csv")))
+  })
+
+# combine simulation results into 1 data frame
+sim.out <- bind_rows(sim.out.list)
+
+# true MSM parameters
+g <- 0.175
+
+# number of sims per setting
+n.rep <- nrow(sim.out) / n_distinct(dplyr::select(sim.out, n, B, vare, pi.cc))
+
+# make long data frame
+sim.out.long <- sim.out %>% 
+  pivot_longer(cols = starts_with("ghat") |
+                 starts_with("stde") |
+                 starts_with("bste"), 
+               names_to = "method.param",
+               values_to = "val") %>% 
+    mutate(method = factor(substr(method.param, 6, 6),
+                           levels = c("O", "N", "C"),
+                           labels = c("Oracle DR",
+                                      "Naive DR",
+                                      "DR CS")),
+           param = factor(substr(method.param, 8, 8)),
+           name = factor(substr(method.param, 1, 4)),
+           g.true = g[param]) %>% 
+  dplyr::select(-method.param) %>% 
+  group_by(clust, n, B, vare, method, pi.cc, param, name) %>% 
+  mutate(id = row_number()) %>% 
+  pivot_wider(names_from = name,
+              values_from = val,
+              id_cols = c(clust, n, B, vare, pi.cc, method,
+                          param, g.true, id)) %>% 
+  mutate(ci.lower = ghat - qnorm(0.975) * stde,
+         ci.upper = ghat + qnorm(0.975) * stde,
+         ci.cov = g.true >= ci.lower & g.true <= ci.upper,
+         bcci.lower = ghat - qnorm(0.975) * bste,
+         bcci.upper = ghat + qnorm(0.975) * bste,
+         bcci.cov = g.true >= bcci.lower & g.true <= bcci.upper)
+
+```
+
+The goal of this program is to evaluate the Monte Carlo corrected score inverse probability weighting (MCCS IPW) estimator in the presence of confounding and measurement error, and in a scenario where the propensity score model $\pmb{A}|L$ is nonlinear.
+
+## Setup
+
+Consider the following setup:
+
+* sample size $n\in\{400,2000\}$,
+* two independent confounders $L_1 \sim \textrm{Bernoulli}(0.5), L_2 \sim N(0, 0.16)$
+* univariate exposure $A$, where $A|L \sim N(0.1 - 0.1L_1 + 0.3L_2, 0.04)$
+* binary outcome $Y$, with $Y|A,L \sim \textrm{Bernoulli}(0.35 + 0.15A + 0.25L_1 + 0.2L_2 + 0.05AL_1 + 0.1AL_2)$
+* resulting MSM $\eta(a) = \textrm{E}\{Y(a)\} = \gamma_0 + \gamma_1a$, where $\pmb{\gamma} = (\gamma_0, \gamma_1)^T = (0.475, 0.175)^T$
+* mismeasured exposure $A^* = A + \epsilon$, where $\epsilon \sim N(0, 0.01)$
+
+The estimand of interest in these simulations is $\gamma_1$.
+
+## Methods
+
+In these simulations, we compare three methods:
+
+1) Oracle DR
+2) Naive DR
+3) Corrected DR
+
+Case cohort sampling is used, wherein $A$ and $\pmb{L}$ are collected only for a fraction of cases. This fraction $\pi_{CC}$ is varied in the simulations.
+
+## Results
+
+We first check for simulations with errors.
+
+```{r message = F}
+
+# summarize proportion of missing data by setting
+sim.out.long %>% 
+  filter(param == 1) %>% 
+  group_by(method, n, vare, B, pi.cc) %>% 
+  summarise(prop.error = mean(is.na(ghat))) %>% 
+  filter(prop.error > 0) %>% 
+  ungroup()
+
+```
+
+### Plots of simulation results
+
+Below are boxplots of the empirical distributions of estimators for $\pmb{\gamma}$.
+
+```{r}
+
+# extract simulation parameters
+n <- unique(sim.out$n)
+B <- unique(sim.out$B)
+vare <- unique(sim.out$vare)
+
+# make labels for plots
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+B.labs <- paste0("B = ", B)
+names(B.labs) <- B
+
+vare.labs <- paste0("var(e) = ", vare)
+names(vare.labs) <- vare
+
+n.labs <- paste0("n = ", n)
+names(n.labs) <- n
+
+param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
+names(param.labs) <- 1:4
+
+# colorblind friendly pallette
+pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', '#5d5d5d')
+
+```
+
+```{r}
+
+# create plots
+make.plot <- function(title = T, y.lim = Inf, vare. = vare) {
+  
+  plot <- sim.out.long %>% 
+    filter(abs(ghat - g.true) < y.lim,
+           vare %in% vare.) %>% 
+    ggplot(
+    aes(x = pi.cc,
+        y = ghat,
+        fill = method,
+        color = method)) +
+    geom_boxplot() +
+    stat_summary(fun = mean,
+                 geom = "point",
+                 shape = 8,
+                 size = 2,
+                 orientation = "x",
+                 show.legend = F) +
+    geom_hline(aes(yintercept = g.true),
+               linetype = "dashed",
+               color = "orange") +
+    facet_wrap(~pi.cc,
+               scales = "free_x",
+               #scales = "free",
+               labeller = labeller(param = param.labs), nrow = 1) +
+    labs(y = "Parameter Estimate",
+         fill = "Method",
+         color = "Method") +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank(),
+          legend.position = "bottom") +
+    scale_fill_manual(values = pal_light) +
+    scale_color_manual(values = pal_dark)
+  
+  if (title) {
+    plot <- plot + 
+      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
+            subtitle = paste0(n.rep, " simulations per setting"))
+  }
+  return(plot)
+}
+
+```
+
+```{r}
+
+make.plot()
+
+```
+
+### Table of Simulation Results
+
+Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the 95% CIs corresponding to $\widehat{\pmb{\gamma}}$, for naive and corrected methods, and for $n \in \{400, 800, 8000\}$.
+
+```{r}
+
+tbl <- sim.out.long %>% 
+  mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
+  group_by(n, pi.cc, method) %>% 
+  summarise(bias = 100 * mean(ghat - g.true),
+            emp.se = 100 * sd(ghat),
+            est.se = 100 * mean(stde),
+            ci.cov = 100 * mean(ci.cov),
+            bcest.se = 100 * mean(bste),
+            bcci.cov = 100 * mean(bcci.cov))
+
+kbl <- tbl %>% 
+  kable(format = "latex",
+        digits = c(0, 0, 0,
+                   1, 1,
+                   1, 1,
+                   1, 1),
+        align = c(rep("c", 3 + 2),
+                  rep("r", 4)),
+        booktabs = TRUE,
+        linesep = c("", "", "\\addlinespace"),
+        escape = FALSE,
+        col.names = c("n", "pi.cc", "Method",
+                      "Bias", "ESE",
+                      "ASE", "Cov",
+                      "ASE", "Cov")) %>%
+  add_header_above(c(" " = 5 + 2,
+                     "UC" = 2,
+                     "BC" = 2)) %>% 
+  kable_styling("striped") %>% 
+  row_spec(row = 0, bold = TRUE)
+
+print(kbl)
+  
+```
+
+
