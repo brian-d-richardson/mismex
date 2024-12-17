@@ -53,7 +53,7 @@ sim.out.long <- sim.out %>%
                                       "Naive IPW",
                                       "Reg. Cal. IPW",
                                       "SIMEX IPW",
-                                      "IPW CS")),
+                                      "CS IPW")),
            param = factor(substr(method.param, 9, 9)),
            name = factor(substr(method.param, 1, 4)),
            g.true = g[param]) %>% 
@@ -235,7 +235,7 @@ kbl <- tbl %>%
         align = c(rep("c", 3 + 2),
                   rep("r", 4)),
         booktabs = TRUE,
-        linesep = c("", "", "\\addlinespace"),
+        linesep = c(rep("", 15), "\\addlinespace"),
         escape = FALSE,
         col.names = c("n", "Method", "Parameter",
                       "Bias", "ESE",

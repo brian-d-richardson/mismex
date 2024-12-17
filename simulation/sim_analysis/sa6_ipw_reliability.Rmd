@@ -51,7 +51,7 @@ sim.out.long <- sim.out %>%
     mutate(method = factor(substr(method.param, 6, 7),
                            levels = c("NI", "CI"),
                            labels = c("Naive IPW",
-                                      "IPW CS")),
+                                      "CS IPW")),
            param = factor(substr(method.param, 9, 9)),
            name = factor(substr(method.param, 1, 4)),
            g.true = g[param],
@@ -73,7 +73,7 @@ sim.out.long <- sim.out %>%
 
 ```
 
-The goal of this program is to evaluate the IPW CS estimator with a nonlinear PS model and for a sequence of exposure reliability values.
+The goal of this program is to evaluate the CS IPW estimator with a nonlinear PS model and for a sequence of exposure reliability values.
 
 ## Setup
 
@@ -140,41 +140,6 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 
 ```
 
-```{r}
-
-# create plots
-make.plot <- function(title = F, param. = 2) {
-
-  plot <- sim.out.long %>%
-    filter(param == param.) %>% 
-    mutate(rel = factor(rel)) %>% 
-    ggplot(aes(x = rel, y = ghat, group = rel)) +
-    geom_boxplot(width = 0.7, outlier.size = 0.5) +
-    geom_hline(aes(yintercept = g.true),
-               linetype = "dashed",
-               color = "orange") +
-    facet_grid(n ~ method,
-               scales = "free", 
-               labeller = labeller(n = n.labs)) +
-    labs(y = "Parameter Estimate",
-         x = "Exposure Reliability",
-         fill = "Method",
-         color = "Method") +
-    theme_bw() +
-    theme(legend.position = "bottom") +
-    scale_x_discrete(labels = rel.lab)
-
-  
-  if (title) {
-    plot <- plot +
-      ggtitle(paste0("Empirical Distribution of Parameter Estimates"),
-              subtitle = paste0(n.rep, " simulations per setting"))
-
-  }
-  return(plot)
-}
-
-```
 
 ```{r}
 
@@ -220,8 +185,7 @@ make.plot <- function(title = F, param. = 2, y.lim = Inf) {
       hjust = 0.5,
       color = "red"
     ) +
-    facet_grid(n ~ method,
-               labeller = labeller(n = n.labs)) +
+    facet_grid(~ method) +
     labs(
       y = "Parameter Estimate",
       x = "Exposure Reliability",
@@ -264,9 +228,8 @@ make.plot.2 <- function(title = F, param. = 2) {
     geom_hline(yintercept = 0.95,
                linetype = "dashed",
                color = "orange") +
-    facet_grid(n ~ method,
-               scales = "free", 
-               labeller = labeller(n = n.labs)) +
+    facet_grid(~ method,
+               scales = "free") +
     labs(y = "Coverage Probability",
          x = "Exposure Reliability",
          linetype = "CI Type") +
@@ -288,7 +251,7 @@ make.plot.2 <- function(title = F, param. = 2) {
 
 Below are boxplots of the empirical distributions of estimators for $\gamma_1$, and plots of coverage probabilities of confidence intervals.
 
-```{r message = F}
+```{r message = F, eval = F}
 
 make.plot(param. = 1, y.lim = Inf)
 make.plot(param. = 2, y.lim = Inf)
@@ -296,7 +259,7 @@ make.plot(param. = 3, y.lim = Inf)
 
 ```
 
-```{r message = F}
+```{r message = F, eval = F}
 
 make.plot.2(param. = 1)
 make.plot.2(param. = 2)
@@ -306,7 +269,7 @@ make.plot.2(param. = 3)
 
 ```{r warning = F, message = F, eval = T}
 
-make.plot(param. = 2, y.lim = Inf)
+make.plot(param. = 2, y.lim = 1)
 
 # save plot
 setwd(dirname(getwd()))

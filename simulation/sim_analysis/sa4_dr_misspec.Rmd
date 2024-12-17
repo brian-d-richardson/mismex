@@ -129,7 +129,7 @@ pal_dark <- c('#991122', '#114419', '#223b55', '#6b611d', '#117799', '#55193b', 
 ```{r}
 
 # plot all estimators across 4 modeling scenarios
-make.plot <- function(n. = 2000, vare. = 0.01) {
+make.plot <- function(n. = 2000, vare. = 0.02) {
   
   sim.out %>% 
     filter(n == n.,
@@ -177,10 +177,9 @@ The following table shows the empirical bias, empirical standard error (ESE), av
 ```{r}
 
 tbl <- sim.out %>% 
-  filter(type == "MCCS",
-         n == 2000) %>% 
-  group_by(spec, method, type) %>% 
-  mutate(method = paste0(method, " CS")) %>% 
+  filter(type == "MCCS") %>% 
+  group_by(n, spec, method) %>% 
+  mutate(method = paste0("CS ", method)) %>% 
   summarise(bias = 100 * mean(est - g.true, na.rm = T),
             emp.se = 100 * sd(est, na.rm = T),
             est.se = 100 * mean(se),
@@ -190,14 +189,14 @@ tbl <- sim.out %>%
 
 kbl <- tbl %>% 
   kable(format = "latex",
-        align = c(rep("c", 2),
+        align = c(rep("c", 3),
                   rep("r", 6)),
         booktabs = TRUE,
         linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
-        digits = c(0, 0,
+        digits = c(0, 0, 0,
                    1, 1, 1, 1, 1, 1),
-        col.names = c("Correct Specifications", "Method", "Type",
+        col.names = c("n", "Correct Specifications", "Method",
                       "Bias", "ESE", "ASE", "Cov", "ASE", "Cov"),
         caption = "Estimated MSM Slope") %>%
   add_header_above(c(" " = 4,
@@ -212,13 +211,13 @@ print(kbl)
 
 Below is the same table with $n=400$.
 
-```{r}
+```{r eval = F}
 
 tbl2 <- sim.out %>% 
   filter(type == "MCCS",
          n == 400) %>% 
   group_by(spec, method, type) %>% 
-  mutate(method = paste0(method, " CS")) %>% 
+  mutate(method = paste0("CS ", method)) %>% 
   summarise(bias = 100 * mean(est - g.true, na.rm = T),
             emp.se = 100 * sd(est, na.rm = T),
             est.se = 100 * mean(se),

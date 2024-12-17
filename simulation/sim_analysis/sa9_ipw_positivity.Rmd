@@ -15,6 +15,7 @@ library(tidyverse)
 library(ggplot2)
 library(ggh4x)
 library(kableExtra)
+library(MASS)
 
 ```
 
@@ -51,7 +52,7 @@ sim.out.long <- sim.out %>%
                            levels = c("OI", "NI", "CI"),
                            labels = c("Oracle IPW",
                                       "Naive IPW",
-                                      "IPW CS")),
+                                      "CS IPW")),
            param = factor(substr(method.param, 9, 9)),
            name = factor(substr(method.param, 1, 4)),
            g.true = g[param]) %>% 
@@ -111,6 +112,78 @@ sim.out.long %>%
 
 ```
 
+### Plot of simulation setup
+
+Below is a plot of one simulated data set of size $n=8000$ under the main text setting and under the near positivity violation setting.
+
+```{r warning = F}
+
+set.seed(1)
+nn <- 8000
+
+# no violation parameters
+coef.a.l <- matrix(
+  data = c(0, 0,
+           1, -1,
+           0, 0),
+  nrow = 3, byrow = T)
+
+# violation parameters
+coef.a.l.v <- 4 * coef.a.l
+
+# variance of A|L
+var.a.l <- c(1, 1)                       
+
+# generate data
+L <- rnorm(nn, 0, 0.36)                        # confounder
+L.grp <- ntile(L, 4)                           # L quartiles
+A <- mvrnorm(n = nn,                           # true exposure (no violation)
+             mu = c(0, 0),
+             Sigma = diag(var.a.l)) +
+  cbind(1, L, L^2) %*% coef.a.l
+Av <- mvrnorm(n = nn,                          # true exposure (no violation)
+             mu = c(0, 0),
+             Sigma = diag(var.a.l)) +
+  cbind(1, L, L^2) %*% coef.a.l.v
+dat <- data.frame(rbind(cbind(0, L.grp, A),
+                        cbind(1, L.grp, Av)))
+colnames(dat) <- c("pv", "L", "A1", "A2")
+
+pv.labs <- c("No Positiviy Violation",
+             "Near Positivity Violation")
+names(pv.labs) <- c(0, 1)
+L.labs <- paste0("Quartile ", 1:4)
+names(L.labs) <- 1:4
+
+# create plot
+dat %>% 
+  ggplot(aes(x = A1,
+             y = A2)) +
+  geom_point(shape = 1,
+             alpha = 0.5) + 
+  facet_grid(pv ~ L,
+             labeller = labeller(pv = pv.labs,
+                                 L = L.labs)) +
+  geom_vline(xintercept = 0,
+             color = "blue",
+             linetype = "dashed") +
+  geom_hline(yintercept = 0,
+             color = "blue",
+             linetype = "dashed") +
+  labs(x = expression(A[1]),
+       y = expression(A[2])) +
+  theme_bw()
+
+# save plot
+setwd(dirname(getwd()))
+ggsave("sim_figures/sim9_ipw_positivity.png",
+       width = 7,
+       height = 4,
+       dpi = 300)
+
+```
+
+
 ### Plots of simulation results
 
 Below are boxplots of the empirical distributions of estimators for $\pmb{\gamma}$.
@@ -167,12 +240,6 @@ make.plot <- function(title = T, y.lim = Inf, vare. = vare) {
     geom_hline(aes(yintercept = g.true),
                linetype = "dashed",
                color = "orange") +
-    #facet_nested(param ~ vare + B + n,
-    #             scales = "free",
-    #             labeller = labeller(n = n.labs,
-    #                                 vare = vare.labs,
-    #                                 B = B.labs,
-    #                                 param = param.labs)) +
     facet_wrap(n ~ param,
                scales = "free",
                labeller = labeller(n = n.labs,

@@ -58,7 +58,7 @@ sim.out.long <- sim.out %>%
                                       "Naive G-Formula",
                                       "Reg. Cal. G-Formula",
                                       "SIMEX G-Formula",
-                                      "Corrected G-Formula")),
+                                      "CS G-Formula")),
            aa = as.numeric(gsub("[.]", "", substr(method.aa, 4, 5))),
            a = a[aa],
            EYa.true = EYa.true[aa]) %>% 
@@ -74,7 +74,7 @@ sim.out.summary <- sim.out.long %>%
 
 ```
 
-The goal of this program is to evaluate the G-formula CS estimator with a nonlinear outcome model and for a coarse grid of exposure values.
+The goal of this program is to evaluate the CS G-Formula estimator with a nonlinear outcome model and for a coarse grid of exposure values.
 
 ## Setup
 
@@ -140,7 +140,7 @@ method.labs <- c("Oracle G-Formula",
                  "Naive G-Formula",
                  "Reg. Cal. G-Formula",
                  "SIMEX G-Formula",
-                 "G-Formula CS")
+                 "CS G-Formula")
 
 names(method.labs) <- c("OG", "NG", "RG", "SG", "CG")
 
@@ -180,26 +180,6 @@ p
 ```
 
 ```{r warning = F}
-
-p2 <- sim.out.summary %>% 
-  filter(n %in% c(800, 8000)) %>% 
-  ggplot(
-    aes(x = a,
-        y = bias,
-        ymin = bias.lower,
-        ymax = bias.upper)) +
-  geom_point() +
-  geom_line() +
-  facet_grid(n ~ method,
-             labeller = labeller(n = function(x) paste0("n = ", x))) +
-  theme_bw() +
-  theme(legend.position = c(0.2, 0.3)) +
-  labs(color = "Method",
-       shape = "Method",
-       fill = "Method",
-       y = "Bias")
-
-p2
 
 # save plot
 setwd(dirname(getwd()))

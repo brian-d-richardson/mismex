@@ -206,7 +206,8 @@ Below is a table of the empirical bias, empirical standard error, mean estimated
 
 tbl <- sim.out.long %>% 
   mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
-  group_by(n, pi.cc, method) %>% 
+  group_by(pi.cc, method) %>% 
+  mutate(pi.cc = 100 * pi.cc) %>% 
   summarise(bias = 100 * mean(ghat - g.true),
             emp.se = 100 * sd(ghat),
             est.se = 100 * mean(stde),
@@ -216,7 +217,7 @@ tbl <- sim.out.long %>%
 
 kbl <- tbl %>% 
   kable(format = "latex",
-        digits = c(0, 0, 0,
+        digits = c(0, 0,
                    1, 1,
                    1, 1,
                    1, 1),
@@ -225,11 +226,11 @@ kbl <- tbl %>%
         booktabs = TRUE,
         linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
-        col.names = c("n", "pi.cc", "Method",
+        col.names = c("pi.cc", "Method",
                       "Bias", "ESE",
                       "ASE", "Cov",
                       "ASE", "Cov")) %>%
-  add_header_above(c(" " = 5 + 2,
+  add_header_above(c(" " = 6,
                      "UC" = 2,
                      "BC" = 2)) %>% 
   kable_styling("striped") %>% 

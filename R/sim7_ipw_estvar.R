@@ -27,7 +27,7 @@ sim7.ipw.estvar <- function(
   # for troubleshooting -----------------------------------------------------
 
   #library(MASS); library(devtools); load_all()
-  #n = 800; vare = 0.2; B = 80; seed = 1; n.supp = 5; k = 10
+  #n = 800; vare = 0.2; B = 80; seed = 1; n.supp = 10; k = 5
 
   # define parameters -------------------------------------------------------
 
@@ -114,7 +114,7 @@ sim7.ipw.estvar <- function(
   # combine results ---------------------------------------------------------
 
   ret <- c(
-    n, k, B, seed,
+    n, k, n.supp, B, seed,
     res.NI$est[1:3],
     res.CI$est[1:3],
     sqrt(c(
@@ -125,13 +125,13 @@ sim7.ipw.estvar <- function(
     )))
 
   names(ret) <- c(
-    "n", "k", "B", "seed",
+    "n", "k", "n.supp", "B", "seed",
     apply(tidyr::expand_grid(
       c("ghat", "stde", "bste"),
       c("NI", "CI"),
       1:3), 1, paste, collapse="."))
 
-  # return named numeric vector of length: 22
+  # return named numeric vector of length: 23
   return(ret)
 }
 

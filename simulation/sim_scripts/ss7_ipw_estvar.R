@@ -32,19 +32,19 @@ n.sim <- 1
 
 # constant parameters
 vare <- 0.2                      # measurement error variance for A1, A2
-n.supp <- 5                      # observations with replicate exposures
+k <- 5                           # number of replicate exposure measurements
 
 # varied parameters
-n <- c(800)                # sample size
-B <- 80                    # number of MC replicates
-k <- c(5, 10, 15, 20, 25)  # number of replicate exposure measurements
+n <- c(800)                      # sample size
+B <- 80                          # number of MC replicates
+n.supp <- seq(10, 100, 10)       # supplemental sample size
 
 # run simulations ---------------------------------------------------------
 
 # create simulation input
 sim.in <- expand.grid(n = n,
                       B = B,
-                      k = k,
+                      n.supp = n.supp,
                       sim.id = 1:n.sim + base.seed)
 
 # run simulations
@@ -56,12 +56,12 @@ sim.out <- pbapply::pbvapply(
       n = sim.in$n[ii],
       B = sim.in$B[ii],
       vare = vare,
-      n.supp = n.supp,
-      k = sim.in$k[ii],
+      n.supp = sim.in$n.supp[ii],
+      k = k,
       seed = sim.in$sim.id[ii])
 
   },
-  FUN.VALUE = numeric(22)) |>
+  FUN.VALUE = numeric(23)) |>
   t()
 
 # save sim results

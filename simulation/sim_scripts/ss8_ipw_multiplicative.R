@@ -31,8 +31,8 @@ base.seed <- 10^6 * as.integer(args)
 n.sim <- 1
 
 # constant parameters
-n.supp <- 5                      # observations with replicate exposures
-k <- 10
+n.supp <- 100                      # observations with replicate exposures
+k <- 5
 n <- 800                         # sample size
 B <- 80                          # number of MC replicates
 

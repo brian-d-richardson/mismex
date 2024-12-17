@@ -56,11 +56,11 @@ sim.out.long <- sim.out %>%
            name = factor(substr(method.param, 1, 4)),
            g.true = g[param]) %>% 
   dplyr::select(-method.param) %>% 
-  group_by(clust, n, B, k, method, param, name) %>% 
+  group_by(clust, n, B, k, n.supp, method, param, name) %>% 
   mutate(id = row_number()) %>% 
   pivot_wider(names_from = name,
               values_from = val,
-              id_cols = c(clust, n, B, k, method,
+              id_cols = c(clust, n, B, k, n.supp, method,
                           param, g.true, id)) %>% 
   mutate(ci.lower = ghat - qnorm(0.975) * stde,
          ci.upper = ghat + qnorm(0.975) * stde,
@@ -87,13 +87,13 @@ $\textrm{E}\{Y(\pmb{a})\} = \gamma_0 + \gamma_1 a_1 + \gamma_2 a_2$, where $\pmb
 
 The estimand of interest in these simulations is the parameter $\pmb{\gamma}$ in the marginal structural model.
 
-For these simulations, the covariance $\pmb{\Sigma}_e$ of the measurement error $\pmb{\epsilon}$ is unknown and estimated using supplemental data. In particular, for $5$ subjects, we observe $k$ replicates of $\pmb{A}^*$, and estimate $\pmb{\Sigma}_e$ with
+For these simulations, the covariance $\pmb{\Sigma}_e$ of the measurement error $\pmb{\epsilon}$ is unknown and estimated using supplemental data. In particular, for $n_{supp}$ subjects, we observe $k$ replicates of $\pmb{A}^*$, and estimate $\pmb{\Sigma}_e$ with
 
-$$\widehat{\pmb{\Sigma}}_e = \frac{\sum_{i=1}^{5} \sum_{j=1}^{k} (\pmb{A}^*_{ij} - \pmb{A}^*_{i.})^{T}(\pmb{A}^*_{ij} - \pmb{A}^*_{i.})}{\sum_{i=1}^{5}(k - 1)}.$$
+$$\widehat{\pmb{\Sigma}}_e = \frac{\sum_{i=1}^{n_{supp}} \sum_{j=1}^{k} (\pmb{A}^*_{ij} - \pmb{A}^*_{i.})^{T}(\pmb{A}^*_{ij} - \pmb{A}^*_{i.})}{\sum_{i=1}^{n_{supp}}(k - 1)}.$$
 
 ## Methods
 
-In these simulations, we only look at the IPW CS estimator. We vary the sample size $n$ and the number of exposure replicates $k$.
+In these simulations, we only look at the IPW CS estimator. We vary the sample size $n$ and the supplemental sample size $n_{supp}$, while holding constant the number of exposure replicates $k = 5$.
 
 ## Results
 
@@ -103,7 +103,7 @@ We first check for simulations with errors.
 
 # summarize proportion of missing data by setting
 sim.out.long %>% 
-  group_by(method, n, B, k) %>% 
+  group_by(method, n, B, n.supp) %>% 
   summarise(prop.error = mean(is.na(ghat))) %>% 
   filter(prop.error > 0)
 
@@ -115,6 +115,7 @@ sim.out.long %>%
 n <- unique(sim.out$n)
 B <- unique(sim.out$B)
 k <- unique(sim.out$k)
+n.supp <- unique(sim.out$n.supp)
 
 # make labels for plots
 n.labs <- paste0("n = ", n)
@@ -128,6 +129,9 @@ names(n.labs) <- n
 
 k.labs <- paste0("k = ", k)
 names(k.labs) <- k
+
+n.supp.labs <- paste0("Pilot n = ", n.supp)
+names(n.supp.labs) <- n.supp
 
 param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
 names(param.labs) <- 1:4
@@ -146,17 +150,14 @@ make.plot <- function(title = F, param. = 2) {
   plot <- sim.out.long %>%
     filter(param == param.,
            method == "IPW CS") %>% 
-    mutate(k = factor(k)) %>% 
-    ggplot(aes(x = k, y = ghat, group = k)) +
+    mutate(n.supp = factor(n.supp)) %>% 
+    ggplot(aes(x = n.supp, y = ghat)) +
     geom_boxplot(width = 0.7, outlier.size = 0.5) +
     geom_hline(aes(yintercept = g.true),
                linetype = "dashed",
                color = "orange") +
-    #facet_grid(n ~ method,
-    #           scales = "free", 
-    #           labeller = labeller(n = n.labs)) +
     labs(y = "Parameter Estimate",
-         x = "Number of Exposure Replicates (k)",
+         x = "Pilot Sample Size",
          fill = "Method",
          color = "Method") +
     theme_bw() +
@@ -189,9 +190,9 @@ make.plot.2 <- function(title = F, param. = 2) {
     mutate(ci.type = ifelse(ci.type == "bcci.cov",
                             "Bias-Corrected",
                             "Uncorrected")) %>% 
-    group_by(k, n, method, ci.type) %>% 
+    group_by(n.supp, n, method, ci.type) %>% 
     summarise(cov = mean(ci.cov, na.rm = T)) %>% 
-    ggplot(aes(x = k,
+    ggplot(aes(x = n.supp,
                linetype = ci.type,
                y = cov)) +
     geom_line() +
@@ -202,7 +203,7 @@ make.plot.2 <- function(title = F, param. = 2) {
     #           scales = "free", 
     #           labeller = labeller(n = n.labs)) +
     labs(y = "Coverage Probability",
-         x = "Number of Exposure Replicates (k)",
+         x = "Pilot Sample Size",
          linetype = "CI Type") +
     theme_bw() +
     theme(legend.position = "bottom")
