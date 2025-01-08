@@ -11,7 +11,7 @@
 
 <meta name="author" content="Brian Richardson" />
 
-<meta name="date" content="2024-12-11" />
+<meta name="date" content="2025-01-06" />
 
 <title>Simulation 4: DR with model misspecification</title>
 
@@ -441,7 +441,7 @@ display: none;
 <h1 class="title toc-ignore">Simulation 4: DR with model
 misspecification</h1>
 <h4 class="author">Brian Richardson</h4>
-<h4 class="date">12/11/2024</h4>
+<h4 class="date">01/06/2025</h4>
 
 </div>
 
@@ -485,7 +485,7 @@ sim.out &lt;- bind_rows(sim.out.list) %&gt;%
          spec = factor(ifelse(ps == 0 &amp; out == 0, &quot;PS and OR&quot;,
                        ifelse(ps == 0 &amp; out == 1, &quot;PS&quot;,
                        ifelse(ps == 1 &amp; out == 0, &quot;OR&quot;, &quot;Neither&quot;))),
-                       levels = c(&quot;PS and OR&quot;, &quot;PS&quot;, &quot;OR&quot;, &quot;Neither&quot;)),
+                       levels = c(&quot;PS and OR&quot;, &quot;PS Only&quot;, &quot;OR Only&quot;, &quot;Neither&quot;)),
          ps = factor(ps,
                      levels = c(0, 1),
                      labels = c(&quot;PS Correct&quot;, &quot;PS Incorrect&quot;)),
@@ -654,33 +654,25 @@ print(kbl)</code></pre>
 ## 400 &amp; PS and OR &amp; CS G-Formula &amp; 0.1 &amp; 15.6 &amp; 15.1 &amp; 93.9 &amp; 15.2 &amp; 93.9\\
 ## 400 &amp; PS and OR &amp; CS IPW &amp; -0.7 &amp; 19.3 &amp; 17.6 &amp; 92.1 &amp; 18.0 &amp; 92.2\\
 ## \addlinespace
-## 400 &amp; PS &amp; CS DR &amp; -1.1 &amp; 18.7 &amp; 17.1 &amp; 92.1 &amp; 17.3 &amp; 92.4\\
-## 400 &amp; PS &amp; CS G-Formula &amp; -14.9 &amp; 15.0 &amp; 14.9 &amp; 82.8 &amp; 14.9 &amp; 83.0\\
-## 400 &amp; PS &amp; CS IPW &amp; -0.7 &amp; 19.3 &amp; 17.6 &amp; 92.1 &amp; 18.0 &amp; 92.2\\
-## \addlinespace
-## 400 &amp; OR &amp; CS DR &amp; -0.4 &amp; 16.9 &amp; 15.9 &amp; 93.1 &amp; 16.1 &amp; 93.1\\
-## 400 &amp; OR &amp; CS G-Formula &amp; 0.1 &amp; 15.6 &amp; 15.1 &amp; 93.9 &amp; 15.2 &amp; 93.9\\
-## 400 &amp; OR &amp; CS IPW &amp; -15.3 &amp; 16.5 &amp; 16.0 &amp; 83.3 &amp; 16.2 &amp; 83.9\\
-## \addlinespace
 ## 400 &amp; Neither &amp; CS DR &amp; -15.3 &amp; 16.4 &amp; 15.7 &amp; 81.7 &amp; 15.9 &amp; 82.2\\
 ## 400 &amp; Neither &amp; CS G-Formula &amp; -14.9 &amp; 15.0 &amp; 14.9 &amp; 82.8 &amp; 14.9 &amp; 83.0\\
 ## 400 &amp; Neither &amp; CS IPW &amp; -15.3 &amp; 16.5 &amp; 16.0 &amp; 83.3 &amp; 16.2 &amp; 83.9\\
+## \addlinespace
+## 400 &amp; NA &amp; CS DR &amp; -0.7 &amp; 17.8 &amp; 16.5 &amp; 92.6 &amp; 16.7 &amp; 92.8\\
+## 400 &amp; NA &amp; CS G-Formula &amp; -7.4 &amp; 17.1 &amp; 15.0 &amp; 88.3 &amp; 15.1 &amp; 88.4\\
+## 400 &amp; NA &amp; CS IPW &amp; -8.0 &amp; 19.4 &amp; 16.8 &amp; 87.7 &amp; 17.1 &amp; 88.0\\
 ## \addlinespace
 ## 2000 &amp; PS and OR &amp; CS DR &amp; 0.2 &amp; 8.5 &amp; 7.9 &amp; 92.6 &amp; 7.9 &amp; 92.9\\
 ## 2000 &amp; PS and OR &amp; CS G-Formula &amp; 0.0 &amp; 6.8 &amp; 6.6 &amp; 94.2 &amp; 6.6 &amp; 94.3\\
 ## 2000 &amp; PS and OR &amp; CS IPW &amp; 0.1 &amp; 8.9 &amp; 8.3 &amp; 93.5 &amp; 8.4 &amp; 94.0\\
 ## \addlinespace
-## 2000 &amp; PS &amp; CS DR &amp; -0.1 &amp; 8.6 &amp; 8.0 &amp; 93.3 &amp; 8.1 &amp; 93.4\\
-## 2000 &amp; PS &amp; CS G-Formula &amp; -14.9 &amp; 6.7 &amp; 6.6 &amp; 39.7 &amp; 6.6 &amp; 40.0\\
-## 2000 &amp; PS &amp; CS IPW &amp; 0.1 &amp; 8.9 &amp; 8.3 &amp; 93.5 &amp; 8.4 &amp; 94.0\\
-## \addlinespace
-## 2000 &amp; OR &amp; CS DR &amp; 0.1 &amp; 7.7 &amp; 7.2 &amp; 93.0 &amp; 7.2 &amp; 93.0\\
-## 2000 &amp; OR &amp; CS G-Formula &amp; 0.0 &amp; 6.8 &amp; 6.6 &amp; 94.2 &amp; 6.6 &amp; 94.3\\
-## 2000 &amp; OR &amp; CS IPW &amp; -14.7 &amp; 7.6 &amp; 7.3 &amp; 47.9 &amp; 7.3 &amp; 47.9\\
-## \addlinespace
 ## 2000 &amp; Neither &amp; CS DR &amp; -14.7 &amp; 7.5 &amp; 7.1 &amp; 47.0 &amp; 7.2 &amp; 47.3\\
 ## 2000 &amp; Neither &amp; CS G-Formula &amp; -14.9 &amp; 6.7 &amp; 6.6 &amp; 39.7 &amp; 6.6 &amp; 40.0\\
 ## 2000 &amp; Neither &amp; CS IPW &amp; -14.7 &amp; 7.6 &amp; 7.3 &amp; 47.9 &amp; 7.3 &amp; 47.9\\
+## \addlinespace
+## 2000 &amp; NA &amp; CS DR &amp; 0.0 &amp; 8.2 &amp; 7.6 &amp; 93.2 &amp; 7.6 &amp; 93.2\\
+## 2000 &amp; NA &amp; CS G-Formula &amp; -7.4 &amp; 10.0 &amp; 6.6 &amp; 67.0 &amp; 6.6 &amp; 67.2\\
+## 2000 &amp; NA &amp; CS IPW &amp; -7.3 &amp; 11.1 &amp; 7.8 &amp; 70.7 &amp; 7.8 &amp; 71.0\\
 ## \bottomrule
 ## \end{tabular}
 ## \end{table}</code></pre>

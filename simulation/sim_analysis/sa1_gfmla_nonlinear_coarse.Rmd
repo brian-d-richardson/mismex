@@ -211,7 +211,10 @@ Below is a table for the primary estimand of interest ($\textrm{E}\{Y(a)\}$ for 
 ```{r message = F}
 
 tbl <- sim.out.long %>% 
-  filter(a == 1) %>% 
+  filter(a == 1,
+         method %in% c("Oracle G-Formula",
+                       "Naive G-Formula",
+                       "CS G-Formula")) %>% 
   group_by(n, method, a) %>% 
   summarise(bias = 100 * mean(est - EYa.true, na.rm = T),
             emp.se = 100 * sd(est, na.rm = T),
@@ -229,7 +232,7 @@ kbl <- tbl %>%
         align = c(rep("c", 2),
                   rep("r", 7)),
         booktabs = TRUE,
-        linesep = c("", "", "", "", "\\addlinespace"),
+        linesep = c("", "", "\\addlinespace"),
         escape = FALSE,
         col.names = c("n", "Method",
                       "Bias", "ESE",

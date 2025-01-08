@@ -141,8 +141,10 @@ names(vare.labs) <- vare
 n.labs <- paste0("n = ", n)
 names(n.labs) <- n
 
-param.labs <- paste0("\u03b3", c("0", "1", "2", "3"))
-names(param.labs) <- 1:4
+param.labs <- paste0("gamma[", c("0", "1", "2"), "]")
+names(param.labs) <- 1:3
+param.labs <- as_labeller(param.labs,
+                          default = label_parsed)
 
 # colorblind friendly pallette
 pal_light <- c('#EE6677', '#228833', '#4477AA', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
@@ -172,14 +174,8 @@ make.plot <- function(title = T, y.lim = Inf, vare. = vare) {
                  show.legend = F) +
     geom_hline(aes(yintercept = g.true),
                linetype = "dashed",
-               color = "orange") +
-    #facet_nested(param ~ vare + B + n,
-    #             scales = "free",
-    #             labeller = labeller(n = n.labs,
-    #                                 vare = vare.labs,
-    #                                 B = B.labs,
-    #                                 param = param.labs)) +
-    facet_wrap(n ~ param,
+               color = "black") +
+    facet_grid(param ~ n,
                scales = "free",
                labeller = labeller(n = n.labs,
                                    param = param.labs)) +
@@ -190,7 +186,8 @@ make.plot <- function(title = T, y.lim = Inf, vare. = vare) {
     theme(axis.title.x = element_blank(),
           axis.ticks.x = element_blank(),
           axis.text.x = element_blank(),
-          legend.position = "bottom") +
+          legend.position = "bottom",
+          strip.text = element_text()) +
     scale_fill_manual(values = pal_light) +
     scale_color_manual(values = pal_dark)
   
@@ -206,17 +203,30 @@ make.plot <- function(title = T, y.lim = Inf, vare. = vare) {
 
 ```{r}
 
-make.plot()
+make.plot(title = F)
 
 ```
 
+```{r warning = F}
+
+# save plot
+setwd(dirname(getwd()))
+ggsave("sim_figures/sim3_ipw_nonlinearps.png",
+       width = 6,
+       height = 4,
+       dpi = 300)
+
+```
+
+
 ### Table of Simulation Results
 
-Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the 95% CIs corresponding to $\widehat{\pmb{\gamma}}$, for naive and corrected methods, and for $n \in \{400, 800, 8000\}$.
+Below is a table of the empirical bias, empirical standard error, mean estimated standard error, and empirical coverage probability of the 95% CIs corresponding to $\widehat{\pmb{\gamma}}$, for oracel, naive, and corrected methods, and for $n \in \{400, 800, 8000\}$.
 
 ```{r}
 
 tbl <- sim.out.long %>% 
+  filter(method %in% c("Oracle IPW", "Naive IPW", "CS IPW")) %>% 
   mutate(Param = paste0("$\\gamma_", as.numeric(param) - 1, "$")) %>% 
   group_by(n, method, Param) %>% 
   summarise(bias = 100 * mean(ghat - g.true),
@@ -235,7 +245,7 @@ kbl <- tbl %>%
         align = c(rep("c", 3 + 2),
                   rep("r", 4)),
         booktabs = TRUE,
-        linesep = c(rep("", 15), "\\addlinespace"),
+        linesep = c(rep("", 9), "\\addlinespace"),
         escape = FALSE,
         col.names = c("n", "Method", "Parameter",
                       "Bias", "ESE",
