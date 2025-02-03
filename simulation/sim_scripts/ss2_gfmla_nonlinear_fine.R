@@ -29,7 +29,7 @@ load_all()
 args <- commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
-n.sim <- 1                     # number of sims per cluster
+n.sim <- 100                   # number of sims per cluster
 a <- seq(-1, 2, length = 20)   # exposures at which to estimate E{Y(a)}
 
 # varied parameters

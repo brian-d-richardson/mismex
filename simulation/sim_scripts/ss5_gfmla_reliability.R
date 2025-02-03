@@ -30,7 +30,7 @@ args <- commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # fixed parameters
-n.sim <- 1           # number of sims per cluster
+n.sim <- 100         # number of sims per cluster
 a <- -1:2            # exposures at which to estimate E{Y(a)}
 
 # varied parameters

@@ -28,7 +28,7 @@ args <- commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
-n.sim <- 1
+n.sim <- 100
 
 # constant parameters
 n.supp <- 100                      # observations with replicate exposures

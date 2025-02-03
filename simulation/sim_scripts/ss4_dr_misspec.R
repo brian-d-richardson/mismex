@@ -29,7 +29,7 @@ args <- commandArgs(TRUE)
 base.seed <- 10^6 * as.integer(args)
 
 # number of sims per cluster
-n.sim <- 1
+n.sim <- 100
 
 # varied parameters
 n <- c(400, 2000)                 # sample size
